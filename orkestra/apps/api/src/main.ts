@@ -10,7 +10,17 @@ async function bootstrap() {
   app.use(cookieParser());
 
   app.enableCors({
-    origin: process.env.CORS_ORIGIN ?? 'http://localhost:3000',
+    origin: (origin, callback) => {
+      // Support comma-separated list of allowed origins, plus localhost always allowed
+      const allowed = (process.env.CORS_ORIGIN ?? 'http://localhost:3000')
+        .split(',')
+        .map((o) => o.trim());
+      if (!origin || allowed.includes('*') || allowed.includes(origin)) {
+        callback(null, true);
+      } else {
+        callback(new Error(`CORS: origin ${origin} not allowed`));
+      }
+    },
     credentials: true,
   });
 
