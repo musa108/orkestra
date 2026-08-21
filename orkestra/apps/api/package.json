@@ -55,5 +55,8 @@
     "typescript": "^5.5.4",
     "@types/multer": "^1.4.11",
     "@types/cookie-parser": "^1.4.7"
+  },
+  "prisma": {
+    "seed": "ts-node prisma/seed.ts"
   }
 }
