@@ -68,9 +68,16 @@ export class ClickHouseService implements OnModuleInit {
 
   private async exec(query: string, body?: string): Promise<void> {
     if (!this.url) return;
+    const user = process.env.CLICKHOUSE_USER ?? 'default';
+    const password = process.env.CLICKHOUSE_PASSWORD ?? '';
+    const basicAuth = Buffer.from(`${user}:${password}`).toString('base64');
     const res = await fetch(`${this.url}/?query=${encodeURIComponent(query)}`, {
       method: 'POST',
       body,
+      headers: {
+        'Authorization': `Basic ${basicAuth}`,
+        'Content-Type': 'text/plain',
+      },
     });
     if (!res.ok) {
       throw new Error(`ClickHouse HTTP ${res.status}: ${await res.text()}`);
