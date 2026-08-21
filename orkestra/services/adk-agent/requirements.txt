@@ -1,0 +1,6 @@
+# Verified working combination in this build's sandbox — see README.md.
+google-adk>=1.0.0
+mcp>=1.24.0,<2.0.0
+fastapi>=0.110.0
+uvicorn[standard]>=0.29.0
+google-genai>=1.0.0

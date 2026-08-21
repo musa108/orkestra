@@ -1,0 +1,65 @@
+version: "3.9"
+services:
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: orkestra
+      POSTGRES_PASSWORD: orkestra
+      POSTGRES_DB: orkestra
+    ports: ["5432:5432"]
+    volumes: ["orkestra_pgdata:/var/lib/postgresql/data"]
+
+  clickhouse:
+    image: clickhouse/clickhouse-server:24
+    ports: ["8123:8123", "9000:9000"]
+    volumes: ["orkestra_chdata:/var/lib/clickhouse"]
+
+  # Orkestra MCP server — exposes production/workflow/approval data as MCP
+  # tools over Streamable HTTP. Required by adk-agent below; also usable
+  # standalone by any other MCP client (Claude Desktop, etc.).
+  mcp-server:
+    build: ./services/mcp-server
+    environment:
+      ORKESTRA_API_URL: "http://api:4000/api/v1"
+    ports: ["8080:8080"]
+    depends_on: [api]
+
+  # Real google-adk agent service — Gemini + Agent Builder/ADK infra + the
+  # MCP server above as a toolset. Only used when apps/api's AI_PROVIDER=adk.
+  adk-agent:
+    build: ./services/adk-agent
+    environment:
+      GEMINI_API_KEY: "${GEMINI_API_KEY:-}"
+      GEMINI_MODEL: "${GEMINI_MODEL:-gemini-2.0-flash}"
+      MCP_SERVER_URL: "http://mcp-server:8080/mcp"
+    ports: ["8081:8081"]
+    depends_on: [mcp-server]
+
+  api:
+    build: ./apps/api
+    environment:
+      DATABASE_URL: "postgresql://orkestra:orkestra@postgres:5432/orkestra?schema=public"
+      JWT_SECRET: "${JWT_SECRET:-change-me-in-production}"
+      CORS_ORIGIN: "http://localhost:3000"
+      AI_PROVIDER: "${AI_PROVIDER:-mock}"
+      GEMINI_API_KEY: "${GEMINI_API_KEY:-}"
+      ADK_AGENT_URL: "http://adk-agent:8081"
+      CLICKHOUSE_URL: "${CLICKHOUSE_URL:-}"
+      # NODE_ENV deliberately left unset (not "production") — this compose
+      # setup has no TLS termination in front of it, and the refresh-token
+      # cookie is marked Secure when NODE_ENV=production (auth.controller.ts),
+      # which browsers silently refuse to set over plain HTTP. Only set
+      # NODE_ENV=production once this is actually served over HTTPS.
+    ports: ["4000:4000"]
+    depends_on: [postgres]
+
+  web:
+    build: ./apps/web
+    environment:
+      NEXT_PUBLIC_API_URL: "http://localhost:4000/api/v1"
+    ports: ["3000:3000"]
+    depends_on: [api]
+
+volumes:
+  orkestra_pgdata:
+  orkestra_chdata:

@@ -1,0 +1,6 @@
+# Pinned range verified in this build's sandbox: mcp>=1.24 is required for
+# SamplingCapability (needed by google-adk's McpToolset on the client side);
+# mcp>=2.0 renames the FastMCP server API (mcp.server.fastmcp -> mcp.server.mcpserver).
+# 1.24–1.x is the verified-working intersection for this integration.
+mcp>=1.24.0,<2.0.0
+httpx>=0.27.0

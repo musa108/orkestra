@@ -1,0 +1,7 @@
+Seed complete. Demo accounts (all use password OrkestraDemo123!):
+  ORGANIZATION_ADMIN   admin@demo.studio
+  EXECUTIVE_PRODUCER   producer@demo.studio
+  PRODUCTION_MANAGER   pm@demo.studio
+  TEAM_MEMBER          member@demo.studio
+  VIEWER               viewer@demo.studio
+postgresql://orkestra_ztya_user:dUornFKzG4zOmPV3nNuqHJ1MC4N3P97L@dpg-da441767bikc73d6l0m0-a/orkestra_ztya

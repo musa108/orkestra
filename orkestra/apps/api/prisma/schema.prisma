@@ -1,0 +1,462 @@
+// Orkestra — Prisma Schema (v2, enterprise auth/authorization pass)
+//
+// Changes in this pass vs. the original schema:
+//   1. User no longer carries organizationId/role directly — that moved to
+//      OrganizationMember (User -> OrganizationMember -> Organization),
+//      per the auth spec's explicit preference and to support a user
+//      belonging to more than one organization.
+//   2. Session model added — refresh tokens are now tracked server-side
+//      (hash only), enabling rotation, revocation, and reuse detection.
+//   3. Approval expanded — requestedByType, riskLevel, action,
+//      proposedChanges, rejectedBy/rejectedAt, CANCELLED status.
+//   4. AuditLog expanded — actorType, resourceType/resourceId, result,
+//      reason, correlationId, ipAddress, userAgent.
+//   5. Agent gets a capabilities Json field (already existed) now
+//      formally backed by a static capability registry in code
+//      (see src/authz/agent-capabilities.ts) rather than a DB table —
+//      see that file's header comment for why.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// Enums
+// ─────────────────────────────────────────────────────────────────────────
+
+enum UserRole {
+  PLATFORM_ADMIN
+  ORGANIZATION_ADMIN
+  EXECUTIVE_PRODUCER
+  PRODUCER
+  PRODUCTION_MANAGER
+  TEAM_MEMBER
+  VIEWER
+}
+
+enum UserStatus {
+  ACTIVE
+  INVITED
+  SUSPENDED
+}
+
+enum ProductionStatus {
+  DRAFT
+  PLANNING
+  ACTIVE
+  REVIEW
+  PUBLISHED
+  ARCHIVED
+}
+
+enum WorkflowState {
+  CREATED
+  RUNNING
+  WAITING_APPROVAL
+  COMPLETED
+  FAILED
+}
+
+enum WorkflowStepStatus {
+  PENDING
+  RUNNING
+  COMPLETED
+  FAILED
+  SKIPPED
+}
+
+enum AgentType {
+  DIRECTOR
+  SCRIPT
+  BUDGET
+  SCHEDULE
+  RISK
+  MARKETING
+  ANALYTICS
+}
+
+enum AgentExecutionStatus {
+  IDLE
+  RUNNING
+  WAITING
+  COMPLETED
+  FAILED
+}
+
+enum TaskStatus {
+  TODO
+  IN_PROGRESS
+  BLOCKED
+  DONE
+}
+
+enum TaskPriority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+enum TaskAssigneeType {
+  HUMAN
+  AGENT
+}
+
+enum ApprovalStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  EXPIRED
+  CANCELLED
+}
+
+enum ActorType {
+  HUMAN
+  AGENT
+  SYSTEM
+}
+
+enum RiskLevel {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum NotificationType {
+  SUCCESS
+  WARNING
+  ERROR
+  INFO
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// Core entities
+// ─────────────────────────────────────────────────────────────────────────
+
+model Organization {
+  id               String   @id @default(uuid())
+  name             String
+  slug             String   @unique
+  logoUrl          String?
+  subscriptionPlan String   @default("free")
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  members       OrganizationMember[]
+  productions   Production[]
+  notifications Notification[]
+  auditLogs     AuditLog[]
+  sessions      Session[]
+
+  @@map("organizations")
+}
+
+model User {
+  id           String   @id @default(uuid())
+  firstName    String
+  lastName     String
+  email        String   @unique
+  passwordHash String
+  avatarUrl    String?
+  status       UserStatus @default(ACTIVE)
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+  deletedBy String?
+
+  memberships        OrganizationMember[]
+  sessions            Session[]
+  createdProductions Production[]      @relation("ProductionCreatedBy")
+  tasksOwned         Task[]            @relation("TaskAssignee")
+  approvalsRequested Approval[]        @relation("ApprovalRequestedBy")
+  approvalsDecided   Approval[]        @relation("ApprovalDecidedBy")
+  notifications      Notification[]
+  auditLogs          AuditLog[]
+
+  @@map("users")
+}
+
+/// User <-> Organization join, carrying the user's role WITHIN that
+/// organization. A user can belong to more than one organization (e.g. a
+/// freelance producer working with two studios) — each membership has its
+/// own role. Replaces the earlier User.organizationId/role fields.
+model OrganizationMember {
+  id             String   @id @default(uuid())
+  userId         String
+  user           User     @relation(fields: [userId], references: [id])
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  role           UserRole
+
+  createdAt DateTime @default(now())
+
+  @@unique([userId, organizationId])
+  @@index([organizationId])
+  @@map("organization_members")
+}
+
+/// Server-side refresh-token tracking — enables rotation, revocation, and
+/// reuse detection (spec section 5). Only a hash of the refresh token is
+/// stored, never the raw value.
+model Session {
+  id               String   @id @default(uuid())
+  userId           String
+  user             User     @relation(fields: [userId], references: [id])
+  organizationId   String
+  organization     Organization @relation(fields: [organizationId], references: [id])
+  refreshTokenHash String
+  createdAt        DateTime @default(now())
+  expiresAt        DateTime
+  revokedAt        DateTime?
+  ipAddress        String?
+  userAgent        String?
+
+  @@index([userId])
+  @@index([refreshTokenHash])
+  @@map("sessions")
+}
+
+model Production {
+  id             String       @id @default(uuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id])
+
+  title       String
+  description String?
+  genre       String?
+  status      ProductionStatus @default(DRAFT)
+
+  startDate DateTime?
+  endDate   DateTime?
+  budget    Decimal?  @db.Decimal(14, 2)
+
+  createdById String
+  createdBy   User   @relation("ProductionCreatedBy", fields: [createdById], references: [id])
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  workflows Workflow[]
+  assets    Asset[]
+  tasks     Task[]
+  approvals Approval[]
+
+  @@index([organizationId])
+  @@index([status])
+  @@map("productions")
+}
+
+model Workflow {
+  id           String        @id @default(uuid())
+  productionId String
+  production   Production    @relation(fields: [productionId], references: [id])
+
+  name         String        @default("Production Workflow")
+  currentState WorkflowState @default(CREATED)
+  currentStep  String?
+
+  startedAt   DateTime?
+  completedAt DateTime?
+  retryCount  Int       @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  steps     WorkflowStep[]
+  approvals Approval[]
+  events    Event[]
+
+  @@index([productionId])
+  @@index([currentState])
+  @@map("workflows")
+}
+
+model WorkflowStep {
+  id         String             @id @default(uuid())
+  workflowId String
+  workflow   Workflow           @relation(fields: [workflowId], references: [id])
+
+  name           String
+  assignedAgent  AgentType
+  status         WorkflowStepStatus @default(PENDING)
+  input          Json?
+  output         Json?
+  timeoutSeconds Int                @default(120)
+  retryCount     Int                @default(0)
+  startedAt      DateTime?
+  completedAt    DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([workflowId])
+  @@map("workflow_steps")
+}
+
+model Agent {
+  id           String   @id @default(uuid())
+  name         String
+  type         AgentType @unique
+  version      String   @default("1.0.0")
+  capabilities Json?
+  status       AgentExecutionStatus @default(IDLE)
+
+  lastExecutionAt DateTime?
+  confidence      Float?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("agents")
+}
+
+model Task {
+  id           String     @id @default(uuid())
+  productionId String
+  production   Production @relation(fields: [productionId], references: [id])
+
+  title       String
+  description String?
+
+  assigneeType AgentType?
+  assigneeId   String?
+  assignee     User?      @relation("TaskAssignee", fields: [assigneeId], references: [id])
+  assigneeKind TaskAssigneeType @default(HUMAN)
+
+  status   TaskStatus   @default(TODO)
+  priority TaskPriority @default(MEDIUM)
+  dueDate  DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([productionId])
+  @@index([status])
+  @@map("tasks")
+}
+
+/// Expanded per the auth spec: requestedByType distinguishes a human- from
+/// an agent-initiated request (an agent must never approve its own
+/// request — enforced in ApprovalsService, not just at the schema level);
+/// riskLevel/action/proposedChanges make the approval self-describing for
+/// the review UI without a join back to the workflow step that spawned it.
+model Approval {
+  id           String    @id @default(uuid())
+  workflowId   String
+  workflow     Workflow  @relation(fields: [workflowId], references: [id])
+  productionId String
+  production   Production @relation(fields: [productionId], references: [id])
+
+  requestedById   String
+  requestedBy     User      @relation("ApprovalRequestedBy", fields: [requestedById], references: [id])
+  requestedByType ActorType @default(HUMAN)
+
+  action          String?
+  riskLevel       RiskLevel  @default(MEDIUM)
+  proposedChanges Json?
+
+  decidedById String?
+  decidedBy   User?  @relation("ApprovalDecidedBy", fields: [decidedById], references: [id])
+
+  status   ApprovalStatus @default(PENDING)
+  comments String?
+
+  expiresAt DateTime?
+  expiredAt DateTime?
+  decidedAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([workflowId])
+  @@index([status])
+  @@map("approvals")
+}
+
+model Notification {
+  id             String   @id @default(uuid())
+  userId         String
+  user           User     @relation(fields: [userId], references: [id])
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id])
+
+  title   String
+  message String
+  type    NotificationType @default(INFO)
+  read    Boolean          @default(false)
+
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@map("notifications")
+}
+
+model Asset {
+  id           String     @id @default(uuid())
+  productionId String
+  production   Production @relation(fields: [productionId], references: [id])
+
+  filename    String
+  fileType    String
+  storagePath String
+  uploadedBy  String
+
+  createdAt DateTime @default(now())
+
+  @@index([productionId])
+  @@map("assets")
+}
+
+model Event {
+  id            String   @id @default(uuid())
+  workflowId    String?
+  workflow      Workflow? @relation(fields: [workflowId], references: [id])
+  eventType     String
+  payload       Json?
+  correlationId String
+  actor         String?
+  timestamp     DateTime @default(now())
+
+  @@index([workflowId])
+  @@index([eventType])
+  @@index([correlationId])
+  @@map("events")
+}
+
+/// Expanded per the auth spec section 20 — actorType distinguishes
+/// human/agent/system-initiated actions; result/reason record allow/deny
+/// outcomes for authorization events, not just business events.
+model AuditLog {
+  id             String   @id @default(uuid())
+  organizationId String?
+  organization   Organization? @relation(fields: [organizationId], references: [id])
+  actorId        String?
+  actor          User?    @relation(fields: [actorId], references: [id])
+  actorType      ActorType @default(HUMAN)
+
+  action       String
+  resourceType String?
+  resourceId   String?
+  result       String?
+  reason       String?
+  metadata     Json?
+  correlationId String?
+  ipAddress    String?
+  userAgent    String?
+
+  createdAt DateTime @default(now())
+
+  @@index([organizationId])
+  @@index([actorId])
+  @@index([action])
+  @@index([createdAt])
+  @@map("audit_logs")
+}
