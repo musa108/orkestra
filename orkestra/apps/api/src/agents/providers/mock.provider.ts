@@ -22,6 +22,33 @@ export class MockAiProvider implements AIProvider {
   }
 
   private fakeOutputFor(spec: AgentPromptSpec): Record<string, unknown> {
+    if (spec.identity.includes('Risk Agent')) {
+      return {
+        riskLevel: 'HIGH',
+        summary: 'Production exhibits elevated logistical and schedule compression risk across multi-continent shoot locations.',
+        contributingFactors: [
+          'Compressed turnaround window between 5 international shoot locations',
+          'Historical weather delay incidence in remote exterior locations',
+          'Contingency buffer currently below recommended 12% threshold',
+        ],
+        evidence: [
+          {
+            factor: 'schedule_compression',
+            source: 'clickhouse',
+            finding: 'Historical ClickHouse event records show productions with multi-continental shoots experienced 32% higher turnaround delays.',
+          },
+          {
+            factor: 'budget_variance',
+            source: 'clickhouse',
+            finding: 'Historical productions in similar budget brackets required an average 8.5% contingency adjustment before principal photography.',
+          },
+        ],
+        recommendation: 'Incorporate a 5-day pre-production staging buffer and mandate Executive Producer sign-off at the budget gate.',
+        expectedImpact: 'Mitigates projected schedule delay risk by 40% and secures adequate logistical contingency.',
+        affectedWorkflowSteps: ['schedule-generation', 'budget-approval'],
+      };
+    }
+
     // Shape the mock output by inspecting the requested schema keys so
     // downstream agent code (which reads structured_data.<field>) works
     // the same whether mocked or real.
@@ -35,8 +62,11 @@ export class MockAiProvider implements AIProvider {
 
   private fakeValueFor(key: string): unknown {
     const k = key.toLowerCase();
-    if (k.includes('list') || k.includes('scenes') || k.includes('characters') || k.includes('locations') || k.includes('checklist') || k.includes('costs') || k.includes('risks') || k.includes('recommendations') || k.includes('content'))
+    if (k.includes('list') || k.includes('scenes') || k.includes('characters') || k.includes('locations') || k.includes('checklist') || k.includes('costs') || k.includes('risks') || k.includes('recommendations') || k.includes('content') || k.includes('factors') || k.includes('steps'))
       return [`Sample ${key} item A`, `Sample ${key} item B`];
+    if (k.includes('evidence'))
+      return [{ factor: 'sample_factor', source: 'clickhouse', finding: 'Historical pattern match' }];
+    if (k.includes('level')) return 'HIGH';
     if (k.includes('score') || k.includes('confidence')) return Number((Math.random() * 100).toFixed(1));
     if (k.includes('cost') || k.includes('budget') || k.includes('estimate') || k.includes('contingency'))
       return Math.round(50000 + Math.random() * 450000);

@@ -58,10 +58,20 @@ class ScheduleOutput(BaseModel):
     conflicts_detected: list[str]
 
 
+class RiskEvidence(BaseModel):
+    factor: str = Field(description="Risk factor identifier, e.g. schedule_compression, budget_variance")
+    source: str = Field(description="Evidence data source, e.g. clickhouse, workflow_status, brief")
+    finding: str = Field(description="Empirical finding or historical pattern observation")
+
+
 class RiskOutput(BaseModel):
-    risk_score: float = Field(description="0-100")
-    risks: list[str]
-    mitigation_recommendations: list[str]
+    riskLevel: str = Field(description="LOW | MEDIUM | HIGH | CRITICAL")
+    summary: str = Field(description="Executive summary of production risk profile")
+    contributingFactors: list[str] = Field(description="Key contributing risk factors")
+    evidence: list[RiskEvidence] = Field(description="Data-grounded evidence from ClickHouse intelligence or upstream steps")
+    recommendation: str = Field(description="Actionable production recommendation")
+    expectedImpact: str = Field(description="Expected operational impact of the recommendation")
+    affectedWorkflowSteps: list[str] = Field(description="List of affected workflow steps")
 
 
 class MarketingOutput(BaseModel):
@@ -140,13 +150,12 @@ risk_agent = Agent(
     name="risk_agent",
     model=GEMINI_MODEL,
     instruction=(
-        "You are the Risk Agent. Goal: detect budget overruns, schedule "
-        "conflicts, missing approvals, and resource shortages; return a risk "
-        "score (0-100) and mitigation recommendations. Constraint: always pair "
-        "a detected risk with at least one mitigation. Use list_pending_approvals "
-        "and get_workflow_status to check for real outstanding blockers before "
-        "scoring, and use record_workflow_note to leave an auditable note for "
-        "any risk severe enough to need human attention."
+        "You are the Risk Agent. Goal: detect budget variances, schedule conflicts, "
+        "missing approvals, and logistical risks; produce a structured risk assessment and policy recommendations. "
+        "Reasoning Flow: Always use the query_production_intelligence tool (via MCP) to inspect ClickHouse "
+        "historical patterns for the production's genre and budget, and use get_workflow_status to inspect upstream outputs. "
+        "Constraint: Never invent statistics. Base findings on real MCP data. If historical ClickHouse data is limited, "
+        "state that explicitly in evidence. Pair every risk with an actionable recommendation and affected steps."
     ),
     tools=[orkestra_toolset],
     output_schema=RiskOutput,

@@ -27,14 +27,29 @@ export class EventBusService {
   async publish<T extends Record<string, unknown>>(
     type: DomainEvent,
     payload: T,
-    ctx: { workflowId?: string; productionId?: string; correlationId?: string; actor?: string } = {},
+    ctx: { workflowId?: string; productionId?: string; organizationId?: string; correlationId?: string; actor?: string } = {},
   ): Promise<DomainEventPayload<T>> {
+    let orgId = ctx.organizationId;
+    if (!orgId && ctx.productionId) {
+      const prod = await this.prisma.production.findUnique({
+        where: { id: ctx.productionId },
+        select: { organizationId: true },
+      });
+      if (prod) orgId = prod.organizationId;
+    } else if (!orgId && ctx.workflowId) {
+      const wf = await this.prisma.workflow.findUnique({
+        where: { id: ctx.workflowId },
+        include: { production: { select: { organizationId: true } } },
+      });
+      if (wf?.production) orgId = wf.production.organizationId;
+    }
+
     const event: DomainEventPayload<T> = {
       id: randomUUID(),
       type,
       workflowId: ctx.workflowId,
       productionId: ctx.productionId,
-      organizationId: undefined,
+      organizationId: orgId,
       correlationId: ctx.correlationId ?? randomUUID(),
       actor: ctx.actor,
       timestamp: new Date().toISOString(),

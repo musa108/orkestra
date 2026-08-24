@@ -1,4 +1,4 @@
-import { Controller, Get, Param } from '@nestjs/common';
+import { Controller, Get, Param, Query } from '@nestjs/common';
 import { AnalyticsService } from './analytics.service';
 import { CurrentUser, AuthenticatedUser } from '../common/decorators/current-user.decorator';
 
@@ -9,6 +9,24 @@ export class AnalyticsController {
   @Get('dashboard')
   dashboard(@CurrentUser() user: AuthenticatedUser) {
     return this.service.dashboard(user.organizationId);
+  }
+
+  @Get('production-intelligence')
+  productionIntelligence(
+    @CurrentUser() user: AuthenticatedUser,
+    @Query('genre') genre?: string,
+    @Query('budget') budget?: string,
+  ) {
+    return this.service.productionIntelligence(
+      user.organizationId,
+      genre,
+      budget ? parseFloat(budget) : undefined,
+    );
+  }
+
+  @Get('performance')
+  performance(@CurrentUser() user: AuthenticatedUser) {
+    return this.service.performance(user.organizationId);
   }
 
   @Get('productions/:id')

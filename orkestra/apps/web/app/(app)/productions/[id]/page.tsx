@@ -5,6 +5,7 @@ import { Header } from '@/components/Header';
 import { StatusBadge } from '@/components/AgentStatusBadge';
 import { LoadingState, ErrorState } from '@/components/PageState';
 import { WorkflowVisualizer } from '@/components/WorkflowVisualizer';
+import { DecisionReviewModal, DecisionReviewData } from '@/components/DecisionReviewModal';
 import { api, ApiError } from '@/lib/api';
 import { getWorkflowSocket } from '@/lib/socket';
 import {
@@ -48,6 +49,7 @@ export default function ProductionDetailPage() {
   const { id } = useParams<{ id: string }>();
   const [production, setProduction] = useState<Production | null>(null);
   const [workflow, setWorkflow] = useState<WorkflowData | null>(null);
+  const [selectedDecision, setSelectedDecision] = useState<DecisionReviewData | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [starting, setStarting] = useState(false);
@@ -226,10 +228,15 @@ export default function ProductionDetailPage() {
 
         {/* Human Governance Approval Banner (Urgent Action) */}
         {pendingApprovals.length > 0 && (
-          <div className="card-enterprise border-amber-300 dark:border-amber-700/60 bg-amber-50/50 dark:bg-amber-950/20 p-5 space-y-4">
-            <div className="flex items-center gap-2 text-amber-800 dark:text-amber-300 font-semibold text-xs">
-              <ShieldCheck size={16} />
-              <span>Human Producer Authorization Required</span>
+          <div className="card-enterprise border-amber-300 dark:border-amber-700/60 bg-amber-50/50 dark:bg-amber-950/20 p-5 space-y-4 shadow-sm">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2 text-amber-800 dark:text-amber-300 font-semibold text-xs">
+                <ShieldCheck size={16} />
+                <span>Executive AI Decision Review Gate: Human Producer Authorization Required</span>
+              </div>
+              <span className="text-[10px] font-mono text-muted-foreground">
+                ClickHouse Historical Intelligence Grounded
+              </span>
             </div>
 
             <div className="space-y-3">
@@ -239,26 +246,31 @@ export default function ProductionDetailPage() {
                   className="p-3.5 rounded-sm bg-card border border-border flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-subtle"
                 >
                   <div className="space-y-1">
-                    <span className="text-[10px] font-mono font-semibold px-1.5 py-0.5 rounded bg-amber-100 dark:bg-amber-950 text-amber-800 dark:text-amber-300 border border-amber-200 dark:border-amber-800">
-                      High Risk Gate
-                    </span>
-                    <p className="text-xs text-foreground font-medium">{a.comments}</p>
+                    <div className="flex items-center gap-2">
+                      <span className="text-[10px] font-mono font-semibold px-1.5 py-0.5 rounded bg-amber-100 dark:bg-amber-950 text-amber-800 dark:text-amber-300 border border-amber-200 dark:border-amber-800">
+                        {a.riskLevel || 'HIGH'} Risk Gate
+                      </span>
+                      <span className="text-xs text-foreground font-semibold">Budget Authorization & Risk Mitigation</span>
+                    </div>
+                    <p className="text-xs text-muted-foreground">{a.comments}</p>
                   </div>
 
                   <div className="flex items-center gap-2 shrink-0">
                     <button
-                      onClick={() => decide(a.id, 'reject')}
-                      className="btn-danger text-xs px-3 py-1.5"
+                      onClick={() =>
+                        setSelectedDecision({
+                          id: a.id,
+                          workflowId: workflow!.id,
+                          productionId: production.id,
+                          productionTitle: production.title,
+                          riskLevel: a.riskLevel,
+                          comments: a.comments,
+                        })
+                      }
+                      className="btn-primary text-xs px-4 py-2 flex items-center gap-1.5 shadow-sm"
                     >
-                      <X size={13} />
-                      <span>Reject</span>
-                    </button>
-                    <button
-                      onClick={() => decide(a.id, 'approve')}
-                      className="btn-primary text-xs px-3.5 py-1.5"
-                    >
-                      <Check size={13} />
-                      <span>Approve & Proceed</span>
+                      <span>Review AI Decision & Evidence</span>
+                      <ShieldCheck size={14} />
                     </button>
                   </div>
                 </div>
@@ -286,6 +298,14 @@ export default function ProductionDetailPage() {
           </div>
         )}
       </main>
+
+      {/* Full AI Decision Review Modal */}
+      <DecisionReviewModal
+        decision={selectedDecision}
+        onClose={() => setSelectedDecision(null)}
+        onApprove={(id) => decide(id, 'approve')}
+        onReject={(id) => decide(id, 'reject')}
+      />
     </>
   );
 }

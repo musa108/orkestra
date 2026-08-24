@@ -6,13 +6,21 @@ import { AIProvider } from '../providers/ai-provider.interface';
 @Injectable()
 export class RiskAgent extends BaseAgent {
   readonly type = AgentType.RISK;
-  readonly identity = 'Risk Agent — identifies schedule and budget risks.';
-  readonly goal = 'Detect budget overruns, schedule conflicts, missing approvals, and resource shortages; return a risk score and mitigations.';
-  readonly constraints = ['Always pair a detected risk with at least one mitigation recommendation.'];
+  readonly identity = 'Risk Agent — analyzes schedule, budget, and historical risk patterns.';
+  readonly goal = 'Detect budget overruns, schedule conflicts, and logistical bottlenecks; ground assessments in ClickHouse historical intelligence via MCP and return structured recommendations.';
+  readonly constraints = [
+    'Always ground risk findings in MCP production intelligence / ClickHouse data whenever available.',
+    'Explicitly note if historical data is limited rather than fabricating metrics.',
+    'Always include actionable recommendations and affected workflow steps.',
+  ];
   readonly outputSchema = {
-    risk_score: 'number (0-100)',
-    risks: 'array',
-    mitigation_recommendations: 'array',
+    riskLevel: 'string (LOW | MEDIUM | HIGH | CRITICAL)',
+    summary: 'string',
+    contributingFactors: 'array of strings',
+    evidence: 'array of objects ({ factor, source, finding })',
+    recommendation: 'string',
+    expectedImpact: 'string',
+    affectedWorkflowSteps: 'array of strings',
   };
 
   constructor(provider: AIProvider) {

@@ -204,23 +204,34 @@ export class WorkflowEngineService {
     const workflow = await this.prisma.workflow.findUnique({ where: { id: workflowId }, include: { production: true } });
     const requestedById = workflow!.production.createdById;
 
+    // Fetch upstream risk assessment output if available
+    const riskStep = await this.prisma.workflowStep.findFirst({
+      where: { workflowId, name: 'risk-assessment' },
+    });
+    const riskOutput = (riskStep?.output as any) ?? {};
+    const rawRisk = (riskOutput.riskLevel ?? 'HIGH').toUpperCase();
+    const riskLevel = ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'].includes(rawRisk) ? rawRisk : 'HIGH';
+    const comments = riskOutput.summary ?? `Approval required for step: ${stepName}`;
+
     const approval = await this.prisma.approval.create({
       data: {
         workflowId,
         productionId,
         requestedById,
         requestedByType: 'AGENT',
-        riskLevel: 'HIGH',
+        action: 'Budget Authorization & Risk Mitigation',
+        riskLevel: riskLevel as any,
+        proposedChanges: riskOutput,
         status: ApprovalStatus.PENDING,
-        comments: `Approval required for step: ${stepName}`,
+        comments,
         expiresAt: new Date(Date.now() + 48 * 60 * 60 * 1000), // 48h default expiry
       },
     });
 
     await this.eventBus.publish(
       DomainEvent.ApprovalRequested,
-      { approvalId: approval.id, step: stepName },
-      { workflowId, productionId },
+      { approvalId: approval.id, step: stepName, riskLevel, summary: comments },
+      { workflowId, productionId, organizationId: workflow!.production.organizationId },
     );
   }
 

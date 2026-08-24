@@ -1,6 +1,5 @@
 'use client';
-import React from 'react';
-import { useState } from 'react';
+import React, { useState } from 'react';
 import {
   CheckCircle2,
   Clock,
@@ -13,6 +12,13 @@ import {
   Check,
   FileText,
   ShieldAlert,
+  ShieldCheck,
+  Database,
+  Cpu,
+  Layers,
+  ArrowRight,
+  Activity,
+  Zap,
 } from 'lucide-react';
 import clsx from 'clsx';
 import { StatusBadge } from './AgentStatusBadge';
@@ -50,7 +56,6 @@ function ReadableValue({ value, depth = 0 }: { value: unknown; depth?: number })
   }
   if (Array.isArray(value)) {
     if (value.length === 0) return <span className="text-muted-foreground">None</span>;
-    // Arrays of primitives — render as a comma-separated summary
     const allPrimitive = value.every((v) => typeof v !== 'object' || v === null);
     if (allPrimitive) {
       return (
@@ -59,19 +64,16 @@ function ReadableValue({ value, depth = 0 }: { value: unknown; depth?: number })
         </span>
       );
     }
-    // Arrays of objects — summarize each item on its own line
     return (
-      <ul className="list-disc list-inside space-y-0.5 pl-1">
+      <ul className="list-disc list-inside space-y-1 pl-1">
         {value.slice(0, 6).map((item, i) => {
-          // Grab the first meaningful string field to use as the label
           if (typeof item === 'object' && item !== null) {
             const entries = Object.entries(item as Record<string, unknown>);
             const label = entries
               .filter(([, v]) => typeof v === 'string' || typeof v === 'number')
-              .slice(0, 2)
               .map(([k, v]) => `${k.replace(/_/g, ' ')}: ${v}`)
               .join(' · ');
-            return <li key={i} className="truncate text-[11px]">{label || JSON.stringify(item)}</li>;
+            return <li key={i} className="text-[11px] text-foreground">{label || JSON.stringify(item)}</li>;
           }
           return <li key={i}><ReadableValue value={item} depth={depth + 1} /></li>;
         })}
@@ -83,7 +85,6 @@ function ReadableValue({ value, depth = 0 }: { value: unknown; depth?: number })
     const entries = Object.entries(value as Record<string, unknown>);
     if (entries.length === 0) return <span className="text-muted-foreground">—</span>;
     if (depth >= 2) {
-      // Deeply nested — flatten to a compact readable string, no curly brackets
       return (
         <span className="break-words text-[11px]">
           {entries
@@ -98,17 +99,15 @@ function ReadableValue({ value, depth = 0 }: { value: unknown; depth?: number })
       <div className="space-y-1">
         {entries.slice(0, 8).map(([k, v]) => (
           <div key={k}>
-            <span className="text-muted-foreground text-[10px]">{k.replace(/_/g, ' ')}: </span>
+            <span className="text-muted-foreground text-[10px] uppercase font-mono">{k.replace(/_/g, ' ')}: </span>
             <ReadableValue value={v} depth={depth + 1} />
           </div>
         ))}
-        {entries.length > 8 && <span className="text-muted-foreground text-[10px]">+{entries.length - 8} more fields…</span>}
       </div>
     );
   }
   return <span>{String(value)}</span>;
 }
-
 
 export function WorkflowVisualizer({
   workflowId,
@@ -129,35 +128,167 @@ export function WorkflowVisualizer({
     setTimeout(() => setCopied(false), 1500);
   };
 
+  const getStepStatus = (name: string) => {
+    const step = steps.find((s) => s.name === name);
+    return step?.status ?? 'PENDING';
+  };
+
   return (
     <div className="card-enterprise overflow-hidden divide-y divide-border">
       {/* Header bar */}
       <div className="p-4 bg-muted/30 flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-2.5">
-          <div className="w-7 h-7 rounded-sm bg-slate-900 text-white dark:bg-white dark:text-slate-900 flex items-center justify-center font-mono font-bold text-xs">
+          <div className="w-7 h-7 rounded-sm bg-slate-900 text-white dark:bg-white dark:text-slate-900 flex items-center justify-center font-mono font-bold text-xs shadow-sm">
             DAG
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <h2 className="text-xs font-bold text-foreground">Orchestration Step Pipeline</h2>
-              <span className="text-[10px] font-mono px-1.5 py-0.2 bg-muted border border-border rounded text-muted-foreground">
+              <h2 className="text-xs font-bold text-foreground">Multi-Agent Workflow Execution Graph</h2>
+              <span className="text-[10px] font-mono px-1.5 py-0.5 bg-muted border border-border rounded text-muted-foreground">
                 {steps.length} Steps
               </span>
             </div>
             <p className="text-[11px] text-muted-foreground">
-              Deterministic workflow state machine executed by autonomous Google ADK / Gemini agents.
+              Google ADK / Gemini Hierarchical Multi-Agent System with MCP Tool Calling & ClickHouse Intelligence.
             </p>
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
-          <span className="text-xs text-muted-foreground font-medium">Pipeline Status:</span>
+        <div className="flex items-center gap-3">
+          <span className="text-xs text-muted-foreground font-medium">State Machine:</span>
           <StatusBadge status={currentState} size="sm" />
         </div>
       </div>
 
+      {/* Visual Topological DAG Flow Diagram */}
+      <div className="p-5 bg-card/60 border-b border-border overflow-x-auto">
+        <div className="text-[10px] font-mono text-muted-foreground uppercase tracking-wider mb-3 flex items-center gap-1.5">
+          <Layers size={13} />
+          <span>Dependency Execution Topology</span>
+        </div>
+
+        <div className="flex items-center gap-3 min-w-[760px] justify-between text-xs">
+          {/* Node 1: Director */}
+          <div className="flex flex-col items-center">
+            <div className={clsx(
+              'px-3 py-2 rounded border flex flex-col items-center gap-1 transition-all',
+              getStepStatus('director-plan') === 'COMPLETED' && 'border-emerald-500 bg-emerald-50/50 dark:bg-emerald-950/20 text-emerald-900 dark:text-emerald-200',
+              getStepStatus('director-plan') === 'RUNNING' && 'border-blue-500 bg-blue-50/50 dark:bg-blue-950/20 animate-pulse text-blue-900 dark:text-blue-200',
+              getStepStatus('director-plan') === 'PENDING' && 'border-border bg-muted/40 text-muted-foreground'
+            )}>
+              <span className="text-[10px] font-mono font-bold">DIRECTOR</span>
+              <span className="text-xs font-semibold">Plan Brief</span>
+            </div>
+          </div>
+
+          <ChevronRight size={16} className="text-muted-foreground/50 shrink-0" />
+
+          {/* Node 2: Script */}
+          <div className="flex flex-col items-center">
+            <div className={clsx(
+              'px-3 py-2 rounded border flex flex-col items-center gap-1 transition-all',
+              getStepStatus('script-analysis') === 'COMPLETED' && 'border-emerald-500 bg-emerald-50/50 dark:bg-emerald-950/20 text-emerald-900 dark:text-emerald-200',
+              getStepStatus('script-analysis') === 'RUNNING' && 'border-blue-500 bg-blue-50/50 dark:bg-blue-950/20 animate-pulse text-blue-900 dark:text-blue-200',
+              getStepStatus('script-analysis') === 'PENDING' && 'border-border bg-muted/40 text-muted-foreground'
+            )}>
+              <span className="text-[10px] font-mono font-bold">SCRIPT</span>
+              <span className="text-xs font-semibold">Scene Analysis</span>
+            </div>
+          </div>
+
+          <ChevronRight size={16} className="text-muted-foreground/50 shrink-0" />
+
+          {/* Parallel Fan-out: Schedule & Budget */}
+          <div className="flex flex-col gap-2">
+            <div className={clsx(
+              'px-3 py-1.5 rounded border flex items-center justify-between gap-2 transition-all',
+              getStepStatus('schedule-generation') === 'COMPLETED' && 'border-emerald-500 bg-emerald-50/50 dark:bg-emerald-950/20 text-emerald-900 dark:text-emerald-200',
+              getStepStatus('schedule-generation') === 'RUNNING' && 'border-blue-500 bg-blue-50/50 dark:bg-blue-950/20 animate-pulse text-blue-900 dark:text-blue-200',
+              getStepStatus('schedule-generation') === 'PENDING' && 'border-border bg-muted/40 text-muted-foreground'
+            )}>
+              <span className="text-[10px] font-mono font-bold">SCHEDULE</span>
+              <span className="text-xs font-medium">Logistics & Calendar</span>
+            </div>
+
+            <div className={clsx(
+              'px-3 py-1.5 rounded border flex items-center justify-between gap-2 transition-all',
+              getStepStatus('budget-generation') === 'COMPLETED' && 'border-emerald-500 bg-emerald-50/50 dark:bg-emerald-950/20 text-emerald-900 dark:text-emerald-200',
+              getStepStatus('budget-generation') === 'RUNNING' && 'border-blue-500 bg-blue-50/50 dark:bg-blue-950/20 animate-pulse text-blue-900 dark:text-blue-200',
+              getStepStatus('budget-generation') === 'PENDING' && 'border-border bg-muted/40 text-muted-foreground'
+            )}>
+              <span className="text-[10px] font-mono font-bold">BUDGET</span>
+              <span className="text-xs font-medium">Financial Model</span>
+            </div>
+          </div>
+
+          <ChevronRight size={16} className="text-muted-foreground/50 shrink-0" />
+
+          {/* Node 4: Risk Agent (ClickHouse Intelligence) */}
+          <div className="flex flex-col items-center">
+            <div className={clsx(
+              'px-3 py-2 rounded border flex flex-col items-center gap-1 transition-all',
+              getStepStatus('risk-assessment') === 'COMPLETED' && 'border-emerald-500 bg-emerald-50/50 dark:bg-emerald-950/20 text-emerald-900 dark:text-emerald-200',
+              getStepStatus('risk-assessment') === 'RUNNING' && 'border-blue-500 bg-blue-50/50 dark:bg-blue-950/20 animate-pulse text-blue-900 dark:text-blue-200',
+              getStepStatus('risk-assessment') === 'PENDING' && 'border-border bg-muted/40 text-muted-foreground'
+            )}>
+              <span className="text-[10px] font-mono font-bold flex items-center gap-1">
+                <Database size={10} className="text-accent" /> RISK
+              </span>
+              <span className="text-xs font-semibold">ClickHouse Analysis</span>
+            </div>
+          </div>
+
+          <ChevronRight size={16} className="text-muted-foreground/50 shrink-0" />
+
+          {/* Node 5: Human Approval Gate */}
+          <div className="flex flex-col items-center">
+            <div className={clsx(
+              'px-3 py-2 rounded border flex flex-col items-center gap-1 transition-all',
+              getStepStatus('budget-approval') === 'COMPLETED' && 'border-emerald-500 bg-emerald-50/50 dark:bg-emerald-950/20 text-emerald-900 dark:text-emerald-200',
+              currentState === 'WAITING_APPROVAL' && 'border-amber-500 bg-amber-50 dark:bg-amber-950/30 text-amber-900 dark:text-amber-200 shadow-sm animate-pulse',
+              getStepStatus('budget-approval') === 'PENDING' && currentState !== 'WAITING_APPROVAL' && 'border-border bg-muted/40 text-muted-foreground'
+            )}>
+              <span className="text-[10px] font-mono font-bold flex items-center gap-1">
+                <ShieldCheck size={11} className="text-amber-600 dark:text-amber-400" /> HUMAN GATE
+              </span>
+              <span className="text-xs font-semibold">AI Decision Review</span>
+            </div>
+          </div>
+
+          <ChevronRight size={16} className="text-muted-foreground/50 shrink-0" />
+
+          {/* Node 6: Marketing */}
+          <div className="flex flex-col items-center">
+            <div className={clsx(
+              'px-3 py-2 rounded border flex flex-col items-center gap-1 transition-all',
+              getStepStatus('marketing-plan') === 'COMPLETED' && 'border-emerald-500 bg-emerald-50/50 dark:bg-emerald-950/20 text-emerald-900 dark:text-emerald-200',
+              getStepStatus('marketing-plan') === 'RUNNING' && 'border-blue-500 bg-blue-50/50 dark:bg-blue-950/20 animate-pulse text-blue-900 dark:text-blue-200',
+              getStepStatus('marketing-plan') === 'PENDING' && 'border-border bg-muted/40 text-muted-foreground'
+            )}>
+              <span className="text-[10px] font-mono font-bold">MARKETING</span>
+              <span className="text-xs font-semibold">Campaign Strategy</span>
+            </div>
+          </div>
+
+          <ChevronRight size={16} className="text-muted-foreground/50 shrink-0" />
+
+          {/* Node 7: Analytics */}
+          <div className="flex flex-col items-center">
+            <div className={clsx(
+              'px-3 py-2 rounded border flex flex-col items-center gap-1 transition-all',
+              getStepStatus('analytics-summary') === 'COMPLETED' && 'border-emerald-500 bg-emerald-50/50 dark:bg-emerald-950/20 text-emerald-900 dark:text-emerald-200',
+              getStepStatus('analytics-summary') === 'RUNNING' && 'border-blue-500 bg-blue-50/50 dark:bg-blue-950/20 animate-pulse text-blue-900 dark:text-blue-200',
+              getStepStatus('analytics-summary') === 'PENDING' && 'border-border bg-muted/40 text-muted-foreground'
+            )}>
+              <span className="text-[10px] font-mono font-bold">ANALYTICS</span>
+              <span className="text-xs font-semibold">Telemetry Audit</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
       {/* Horizontal Step Timeline Track */}
-      <div className="p-4 overflow-x-auto bg-card">
+      <div className="p-4 overflow-x-auto bg-muted/10">
         <div className="flex items-center gap-2 min-w-max">
           {steps.map((step, idx) => {
             const isSelected = selectedStepIndex === idx;
@@ -173,8 +304,8 @@ export function WorkflowVisualizer({
                   className={clsx(
                     'flex items-center gap-2.5 px-3 py-2 rounded-sm border text-left transition-all cursor-pointer group',
                     isSelected
-                      ? 'bg-muted border-slate-400 dark:border-slate-600 shadow-subtle'
-                      : 'bg-card border-border hover:border-slate-300 dark:hover:border-slate-700',
+                      ? 'bg-card border-slate-900 dark:border-slate-100 shadow-sm'
+                      : 'bg-card/70 border-border hover:border-slate-400 dark:hover:border-slate-600',
                   )}
                 >
                   <div
@@ -186,7 +317,7 @@ export function WorkflowVisualizer({
                       !isDone && !isRunning && !isFailed && 'bg-muted text-muted-foreground',
                     )}
                   >
-                    {idx + 1}
+                    {isDone ? <Check size={11} /> : idx + 1}
                   </div>
 
                   <div className="min-w-0 pr-1">
@@ -201,7 +332,7 @@ export function WorkflowVisualizer({
                 </button>
 
                 {idx < steps.length - 1 && (
-                  <ChevronRight size={14} className="text-muted-foreground/50 mx-1 shrink-0" />
+                  <ChevronRight size={14} className="text-muted-foreground/40 mx-1 shrink-0" />
                 )}
               </div>
             );
@@ -211,10 +342,10 @@ export function WorkflowVisualizer({
 
       {/* Step Inspector Panel */}
       {selectedStep && (
-        <div className="p-4 bg-muted/20 space-y-3">
-          <div className="flex items-center justify-between pb-2 border-b border-border">
+        <div className="p-5 bg-card space-y-4">
+          <div className="flex flex-wrap items-center justify-between pb-3 border-b border-border gap-3">
             <div className="flex items-center gap-3">
-              <span className="text-xs font-semibold text-foreground">
+              <span className="text-xs font-bold text-foreground">
                 Step #{selectedStepIndex + 1}: {selectedStep.name}
               </span>
               <StatusBadge status={selectedStep.status} size="sm" />
@@ -229,16 +360,16 @@ export function WorkflowVisualizer({
                   <button
                     onClick={() => setActiveTab('summary')}
                     className={clsx(
-                      'px-2 py-0.5 rounded-xs font-medium transition-colors',
+                      'px-2.5 py-0.5 rounded-xs font-medium transition-colors',
                       activeTab === 'summary' ? 'bg-card text-foreground shadow-subtle' : 'text-muted-foreground hover:text-foreground',
                     )}
                   >
-                    Summary
+                    Structured View
                   </button>
                   <button
                     onClick={() => setActiveTab('json')}
                     className={clsx(
-                      'px-2 py-0.5 rounded-xs font-medium transition-colors',
+                      'px-2.5 py-0.5 rounded-xs font-medium transition-colors',
                       activeTab === 'json' ? 'bg-card text-foreground shadow-subtle' : 'text-muted-foreground hover:text-foreground',
                     )}
                   >
@@ -248,8 +379,8 @@ export function WorkflowVisualizer({
 
                 <button
                   onClick={copyJson}
-                  className="btn-secondary px-2 py-1 text-[11px]"
-                  title="Copy JSON output"
+                  className="btn-secondary px-2.5 py-1 text-[11px]"
+                  title="Copy JSON payload"
                 >
                   {copied ? <Check size={12} className="text-emerald-600" /> : <Copy size={12} />}
                   <span>{copied ? 'Copied' : 'Copy'}</span>
@@ -261,47 +392,110 @@ export function WorkflowVisualizer({
           {/* Tab content */}
           {selectedStep.output ? (
             activeTab === 'summary' ? (
-              <div className="bg-card border border-border rounded-sm p-4 text-xs space-y-2">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-3 pb-3 border-b border-border text-[11px]">
+              <div className="space-y-4">
+                {/* Telemetry Bar */}
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 p-3 rounded bg-muted/30 border border-border text-xs">
                   <div>
-                    <span className="text-muted-foreground block">Execution Agent</span>
+                    <span className="text-muted-foreground block text-[10px] uppercase font-mono">Agent Identity</span>
                     <span className="font-mono font-medium text-foreground">{selectedStep.assignedAgent}</span>
                   </div>
                   <div>
-                    <span className="text-muted-foreground block">Step State</span>
-                    <span className="font-mono font-medium text-foreground">{selectedStep.status}</span>
+                    <span className="text-muted-foreground block text-[10px] uppercase font-mono">Inference Engine</span>
+                    <span className="font-mono font-semibold text-accent">Gemini 2.0 Flash / Pro</span>
                   </div>
                   <div>
-                    <span className="text-muted-foreground block">Inference Engine</span>
-                    <span className="font-mono font-medium text-accent">Gemini 3.6 Flash</span>
+                    <span className="text-muted-foreground block text-[10px] uppercase font-mono">Tool Integration</span>
+                    <span className="font-mono font-medium text-foreground">FastMCP Streamable HTTP</span>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground block text-[10px] uppercase font-mono">Analytical Store</span>
+                    <span className="font-mono font-semibold text-foreground flex items-center gap-1">
+                      <Database size={11} className="text-amber-500" /> ClickHouse OLAP
+                    </span>
                   </div>
                 </div>
 
-                <div className="pt-1">
-                  <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider block mb-1.5">
-                    Structured Output Fields
-                  </span>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                    {Object.entries(selectedStep.output).map(([k, v]) => (
-                      <div key={k} className="p-2 rounded-sm bg-muted/40 border border-border">
-                        <span className="text-[10px] font-mono text-muted-foreground uppercase tracking-wide">{k.replace(/_/g, ' ')}</span>
-                        <div className="text-xs font-medium text-foreground mt-0.5">
-                          <ReadableValue value={v} />
+                {/* If this is the Risk Agent step, display the dedicated high-impact risk card */}
+                {selectedStep.assignedAgent === 'RISK' && selectedStep.output.riskLevel ? (
+                  <div className="p-4 rounded border border-amber-300 dark:border-amber-700/60 bg-amber-50/40 dark:bg-amber-950/20 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <ShieldAlert size={16} className="text-amber-700 dark:text-amber-400" />
+                        <span className="text-xs font-bold text-foreground">Data-Grounded Risk Assessment</span>
+                      </div>
+                      <span className="px-2 py-0.5 rounded font-mono text-[10px] font-bold bg-amber-200 dark:bg-amber-900/60 text-amber-900 dark:text-amber-200 border border-amber-300 dark:border-amber-700">
+                        {selectedStep.output.riskLevel} RISK LEVEL
+                      </span>
+                    </div>
+
+                    <p className="text-xs text-foreground font-medium leading-relaxed">
+                      {selectedStep.output.summary}
+                    </p>
+
+                    {/* Evidence List */}
+                    {Array.isArray(selectedStep.output.evidence) && selectedStep.output.evidence.length > 0 && (
+                      <div className="space-y-1.5 pt-2 border-t border-amber-200/70 dark:border-amber-800/40">
+                        <span className="text-[10px] font-mono text-muted-foreground uppercase tracking-wider block">
+                          Empirical Evidence (ClickHouse Historical Intelligence):
+                        </span>
+                        <div className="space-y-1.5">
+                          {selectedStep.output.evidence.map((ev: any, i: number) => (
+                            <div key={i} className="p-2 rounded bg-card/80 border border-border text-xs flex items-start gap-2">
+                              <span className="px-1.5 py-0.2 rounded font-mono text-[9px] bg-slate-900 text-white dark:bg-white dark:text-slate-900 shrink-0 mt-0.5">
+                                {ev.source || 'clickhouse'}
+                              </span>
+                              <div className="min-w-0">
+                                <span className="font-semibold text-foreground mr-1">{ev.factor?.replace(/_/g, ' ')}:</span>
+                                <span className="text-muted-foreground">{ev.finding}</span>
+                              </div>
+                            </div>
+                          ))}
                         </div>
                       </div>
-                    ))}
+                    )}
+
+                    {/* Recommendation */}
+                    {selectedStep.output.recommendation && (
+                      <div className="pt-2 border-t border-amber-200/70 dark:border-amber-800/40 text-xs">
+                        <span className="text-[10px] font-mono text-muted-foreground uppercase tracking-wider block mb-1">
+                          System Recommendation:
+                        </span>
+                        <div className="p-2.5 rounded bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800/40 text-emerald-900 dark:text-emerald-200 font-medium">
+                          {selectedStep.output.recommendation}
+                        </div>
+                      </div>
+                    )}
                   </div>
-                </div>
+                ) : (
+                  /* Standard Step Output Fields Grid */
+                  <div className="space-y-2">
+                    <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider block">
+                      Structured Output Attributes
+                    </span>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                      {Object.entries(selectedStep.output).map(([k, v]) => (
+                        <div key={k} className="p-3 rounded bg-muted/30 border border-border">
+                          <span className="text-[10px] font-mono text-muted-foreground uppercase tracking-wide block mb-1">
+                            {k.replace(/_/g, ' ')}
+                          </span>
+                          <div className="text-xs font-medium text-foreground">
+                            <ReadableValue value={v} />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             ) : (
-              <div className="bg-slate-950 text-slate-100 rounded-sm p-3 font-mono text-xs max-h-56 overflow-y-auto">
+              <div className="bg-slate-950 text-slate-100 rounded p-4 font-mono text-xs max-h-80 overflow-y-auto border border-border">
                 <pre>{JSON.stringify(selectedStep.output, null, 2)}</pre>
               </div>
             )
           ) : (
-            <div className="p-6 text-center text-xs text-muted-foreground bg-card border border-border rounded-sm">
-              <Clock size={18} className="mx-auto mb-1.5 text-muted-foreground/60" />
-              <span>Step output is pending execution.</span>
+            <div className="p-8 text-center text-xs text-muted-foreground bg-muted/20 border border-border rounded">
+              <Clock size={20} className="mx-auto mb-2 text-muted-foreground/60" />
+              <span className="font-medium text-foreground">Step awaiting agent execution in pipeline graph.</span>
             </div>
           )}
         </div>

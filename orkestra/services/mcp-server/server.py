@@ -102,6 +102,21 @@ async def record_workflow_note(workflow_id: str, note: str) -> dict:
     )
 
 
+@mcp.tool()
+async def query_production_intelligence(genre: str = "", budget: float = 0.0) -> dict:
+    """Query ClickHouse-backed historical production intelligence and risk patterns.
+    Returns historical delay patterns, risk correlations, and empirical benchmarks
+    from past production workflows in similar budget brackets and genres.
+    Call this tool in the Risk Agent to ground risk assessments in real historical data."""
+    params = []
+    if genre:
+        params.append(f"genre={genre}")
+    if budget:
+        params.append(f"budget={budget}")
+    query_str = f"?{'&'.join(params)}" if params else ""
+    return await _get(f"/analytics/production-intelligence{query_str}")
+
+
 if __name__ == "__main__":
     # Streamable HTTP transport — matches the StreamableHTTPConnectionParams
     # the ADK agents connect with (see adk-agent/agents/*/agent.py).

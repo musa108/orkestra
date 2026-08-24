@@ -130,6 +130,14 @@ export const api = {
   approve: (id: string) => apiFetch(`/approvals/${id}/approve`, { method: 'POST', body: '{}' }),
   reject: (id: string) => apiFetch(`/approvals/${id}/reject`, { method: 'POST', body: '{}' }),
   dashboard: () => apiFetch('/analytics/dashboard'),
+  productionIntelligence: (genre?: string, budget?: number) => {
+    const params = [];
+    if (genre) params.push(`genre=${encodeURIComponent(genre)}`);
+    if (budget) params.push(`budget=${budget}`);
+    const q = params.length > 0 ? `?${params.join('&')}` : '';
+    return apiFetch(`/analytics/production-intelligence${q}`);
+  },
+  analyticsPerformance: () => apiFetch('/analytics/performance'),
   agents: () => apiFetch('/agents'),
   analyticsAgents: () => apiFetch('/analytics/agents'),
   notifications: () => apiFetch('/notifications'),

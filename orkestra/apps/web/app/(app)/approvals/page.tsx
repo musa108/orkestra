@@ -2,6 +2,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { Header } from '@/components/Header';
 import { LoadingState, ErrorState, EmptyState } from '@/components/PageState';
+import { DecisionReviewModal, DecisionReviewData } from '@/components/DecisionReviewModal';
 import { api, ApiError } from '@/lib/api';
 import {
   ShieldCheck,
@@ -12,16 +13,22 @@ import {
   ShieldAlert,
   AlertTriangle,
   Info,
+  ChevronRight,
+  Database,
+  FileText,
 } from 'lucide-react';
 import clsx from 'clsx';
+import { getWorkflowSocket } from '@/lib/socket';
 
 interface Approval {
   id: string;
   workflowId: string;
+  productionId: string;
   status: string;
   comments: string;
   riskLevel?: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
   action?: string;
+  proposedChanges?: any;
   createdAt: string;
   workflow?: { production: { title: string } };
 }
@@ -60,15 +67,13 @@ const RISK_BADGES: Record<
   },
 };
 
-import { getWorkflowSocket } from '@/lib/socket';
-
 export default function ApprovalsPage() {
   const [approvals, setApprovals] = useState<Approval[] | null>(null);
+  const [selectedDecision, setSelectedDecision] = useState<DecisionReviewData | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
   const load = useCallback(() => {
-    setLoading(true);
     setError(null);
     api.approvals()
       .then((r: any) => setApprovals(Array.isArray(r) ? r : (r?.data ?? [])))
@@ -97,14 +102,14 @@ export default function ApprovalsPage() {
     };
   }, [load]);
 
-  async function decide(id: string, action: 'approve' | 'reject') {
-    try {
-      if (action === 'approve') await api.approve(id);
-      else await api.reject(id);
-      await load();
-    } catch (e) {
-      setError(e instanceof ApiError ? e.message : 'Failed to process approval.');
-    }
+  async function handleApprove(id: string) {
+    await api.approve(id);
+    await load();
+  }
+
+  async function handleReject(id: string) {
+    await api.reject(id);
+    await load();
   }
 
   const pendingList = approvals?.filter((a) => a.status === 'PENDING') ?? [];
@@ -123,7 +128,7 @@ export default function ApprovalsPage() {
           <div>
             <h1 className="text-base font-bold text-foreground">Human-in-the-Loop Governance Gates</h1>
             <p className="text-xs text-muted-foreground mt-0.5">
-              Review and authorize critical AI agent actions before state progression.
+              Review and authorize autonomous AI recommendations backed by ClickHouse historical telemetry.
             </p>
           </div>
 
@@ -161,7 +166,7 @@ export default function ApprovalsPage() {
                 return (
                   <div
                     key={a.id}
-                    className="card-enterprise p-5 flex flex-col md:flex-row md:items-center justify-between gap-4 border-amber-200 dark:border-amber-800/40 bg-amber-50/30 dark:bg-amber-950/10"
+                    className="card-enterprise p-5 flex flex-col md:flex-row md:items-center justify-between gap-4 border-amber-300 dark:border-amber-700/60 bg-amber-50/40 dark:bg-amber-950/20 shadow-sm"
                   >
                     <div className="space-y-2 min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
@@ -182,6 +187,10 @@ export default function ApprovalsPage() {
                             Production: <strong className="underline">{a.workflow.production.title}</strong>
                           </span>
                         )}
+
+                        <span className="text-[10px] font-mono text-muted-foreground flex items-center gap-1">
+                          <Database size={11} className="text-amber-500" /> ClickHouse Historical Analysis
+                        </span>
                       </div>
 
                       <p className="text-xs text-foreground font-medium leading-relaxed max-w-3xl">
@@ -191,16 +200,22 @@ export default function ApprovalsPage() {
 
                     <div className="flex items-center gap-2 shrink-0">
                       <button
-                        onClick={() => decide(a.id, 'reject')}
-                        className="btn-danger text-xs px-3.5 py-1.5"
+                        onClick={() =>
+                          setSelectedDecision({
+                            id: a.id,
+                            workflowId: a.workflowId,
+                            productionId: a.productionId,
+                            productionTitle: a.workflow?.production?.title,
+                            action: a.action,
+                            riskLevel: a.riskLevel,
+                            comments: a.comments,
+                            proposedChanges: a.proposedChanges,
+                          })
+                        }
+                        className="btn-primary text-xs px-4 py-2 flex items-center gap-1.5 shadow-sm"
                       >
-                        <X size={13} /> Reject
-                      </button>
-                      <button
-                        onClick={() => decide(a.id, 'approve')}
-                        className="btn-primary text-xs px-4 py-1.5"
-                      >
-                        <Check size={13} /> Authorize & Proceed
+                        <span>Review AI Decision</span>
+                        <ChevronRight size={14} />
                       </button>
                     </div>
                   </div>
@@ -241,6 +256,14 @@ export default function ApprovalsPage() {
           </div>
         )}
       </main>
+
+      {/* Full AI Decision Review Modal */}
+      <DecisionReviewModal
+        decision={selectedDecision}
+        onClose={() => setSelectedDecision(null)}
+        onApprove={handleApprove}
+        onReject={handleReject}
+      />
     </>
   );
 }
