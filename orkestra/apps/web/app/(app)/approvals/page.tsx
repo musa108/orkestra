@@ -16,6 +16,7 @@ import {
   ChevronRight,
   Database,
   FileText,
+  Filter,
 } from 'lucide-react';
 import clsx from 'clsx';
 import { getWorkflowSocket } from '@/lib/socket';
@@ -72,6 +73,7 @@ export default function ApprovalsPage() {
   const [selectedDecision, setSelectedDecision] = useState<DecisionReviewData | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [filter, setFilter] = useState<'ALL' | 'PENDING' | 'RESOLVED'>('ALL');
 
   const load = useCallback(() => {
     setError(null);
@@ -85,7 +87,7 @@ export default function ApprovalsPage() {
     load();
   }, [load]);
 
-  // Live real-time socket refresh when approvals are requested or granted
+  // Live real-time socket refresh when approvals are requested or decided
   useEffect(() => {
     const socket = getWorkflowSocket();
     const handleEvent = () => load();
@@ -102,13 +104,13 @@ export default function ApprovalsPage() {
     };
   }, [load]);
 
-  async function handleApprove(id: string) {
-    await api.approve(id);
+  async function handleApprove(id: string, comments?: string) {
+    await api.approve(id, comments);
     await load();
   }
 
-  async function handleReject(id: string) {
-    await api.reject(id);
+  async function handleReject(id: string, comments?: string) {
+    await api.reject(id, comments);
     await load();
   }
 
@@ -122,21 +124,65 @@ export default function ApprovalsPage() {
         breadcrumbs={[{ label: 'Governance & Safety' }]}
       />
 
-      <main className="p-8 space-y-6 max-w-7xl mx-auto">
+      <main className="p-4 sm:p-6 lg:p-8 space-y-6 max-w-7xl mx-auto">
         {/* Header Summary */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
-            <h1 className="text-base font-bold text-foreground">Human-in-the-Loop Governance Gates</h1>
-            <p className="text-xs text-muted-foreground mt-0.5">
-              Review and authorize autonomous AI recommendations backed by ClickHouse historical telemetry.
+            <h1 className="text-base sm:text-lg font-bold text-foreground">Human-in-the-Loop Governance Gates</h1>
+            <p className="text-xs text-muted-foreground mt-0.5 max-w-2xl">
+              Review and authorize autonomous AI recommendations backed by ClickHouse empirical telemetry.
             </p>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             <span className="text-xs font-mono px-2.5 py-1 rounded bg-muted border border-border text-foreground">
               {pendingList.length} Pending Actions
             </span>
+            <span className="text-xs font-mono px-2.5 py-1 rounded bg-muted border border-border text-muted-foreground">
+              {resolvedList.length} Resolved
+            </span>
           </div>
+        </div>
+
+        {/* Filter Pills */}
+        <div className="flex items-center gap-1.5 border-b border-border pb-3 overflow-x-auto">
+          <button
+            onClick={() => setFilter('ALL')}
+            className={clsx(
+              'px-3 py-1.5 rounded-sm text-xs font-medium transition-colors cursor-pointer shrink-0',
+              filter === 'ALL'
+                ? 'bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900 font-semibold'
+                : 'text-muted-foreground hover:text-foreground hover:bg-muted',
+            )}
+          >
+            All Gates ({approvals?.length ?? 0})
+          </button>
+          <button
+            onClick={() => setFilter('PENDING')}
+            className={clsx(
+              'px-3 py-1.5 rounded-sm text-xs font-medium transition-colors cursor-pointer shrink-0 flex items-center gap-1.5',
+              filter === 'PENDING'
+                ? 'bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900 font-semibold'
+                : 'text-muted-foreground hover:text-foreground hover:bg-muted',
+            )}
+          >
+            <span>Pending Action</span>
+            {pendingList.length > 0 && (
+              <span className="w-2 h-2 rounded-full bg-amber-500" />
+            )}
+            <span className="text-[10px] font-mono">({pendingList.length})</span>
+          </button>
+          <button
+            onClick={() => setFilter('RESOLVED')}
+            className={clsx(
+              'px-3 py-1.5 rounded-sm text-xs font-medium transition-colors cursor-pointer shrink-0',
+              filter === 'RESOLVED'
+                ? 'bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900 font-semibold'
+                : 'text-muted-foreground hover:text-foreground hover:bg-muted',
+            )}
+          >
+            Resolved Audit History ({resolvedList.length})
+          </button>
         </div>
 
         {/* Loading and Error States */}
@@ -147,12 +193,12 @@ export default function ApprovalsPage() {
         {!loading && !error && approvals && approvals.length === 0 && (
           <EmptyState
             title="All governance gates cleared"
-            description="There are currently no active workflows paused waiting for human producer authorization."
+            description="There are currently no active workflows paused waiting for human executive authorization."
           />
         )}
 
         {/* Pending Approvals Section */}
-        {!loading && !error && pendingList.length > 0 && (
+        {!loading && !error && (filter === 'ALL' || filter === 'PENDING') && pendingList.length > 0 && (
           <div className="space-y-3">
             <h2 className="text-xs font-bold text-foreground uppercase tracking-wider">
               Pending Producer Authorization ({pendingList.length})
@@ -166,9 +212,9 @@ export default function ApprovalsPage() {
                 return (
                   <div
                     key={a.id}
-                    className="card-enterprise p-5 flex flex-col md:flex-row md:items-center justify-between gap-4 border-amber-300 dark:border-amber-700/60 bg-amber-50/40 dark:bg-amber-950/20 shadow-sm"
+                    className="card-enterprise p-4 sm:p-5 flex flex-col md:flex-row md:items-center justify-between gap-4 border-amber-300 dark:border-amber-700/60 bg-amber-50/40 dark:bg-amber-950/20 shadow-sm"
                   >
-                    <div className="space-y-2 min-w-0">
+                    <div className="space-y-2 min-w-0 flex-1">
                       <div className="flex items-center gap-2 flex-wrap">
                         <span
                           className={clsx(
@@ -198,7 +244,7 @@ export default function ApprovalsPage() {
                       </p>
                     </div>
 
-                    <div className="flex items-center gap-2 shrink-0">
+                    <div className="flex items-center gap-2 shrink-0 w-full sm:w-auto">
                       <button
                         onClick={() =>
                           setSelectedDecision({
@@ -212,7 +258,7 @@ export default function ApprovalsPage() {
                             proposedChanges: a.proposedChanges,
                           })
                         }
-                        className="btn-primary text-xs px-4 py-2 flex items-center gap-1.5 shadow-sm"
+                        className="btn-primary text-xs px-4 py-2 flex items-center justify-center gap-1.5 shadow-sm w-full sm:w-auto cursor-pointer"
                       >
                         <span>Review AI Decision</span>
                         <ChevronRight size={14} />
@@ -226,30 +272,42 @@ export default function ApprovalsPage() {
         )}
 
         {/* Resolved Approvals History */}
-        {!loading && !error && resolvedList.length > 0 && (
-          <div className="space-y-3 pt-4">
+        {!loading && !error && (filter === 'ALL' || filter === 'RESOLVED') && resolvedList.length > 0 && (
+          <div className="space-y-3 pt-2">
             <h2 className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
               Governance Audit History ({resolvedList.length})
             </h2>
 
-            <div className="card-enterprise divide-y divide-border">
+            <div className="card-enterprise divide-y divide-border overflow-hidden">
               {resolvedList.map((a) => (
-                <div key={a.id} className="p-3.5 flex items-center justify-between gap-4 text-xs">
+                <div key={a.id} className="p-3.5 sm:p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
                   <div className="space-y-0.5 min-w-0">
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 flex-wrap">
                       <span className="font-semibold text-foreground truncate">
                         {a.workflow?.production?.title || 'Production Gate'}
                       </span>
                       <span className="text-[10px] font-mono text-muted-foreground">
-                        Status: <strong className={a.status === 'APPROVED' ? 'text-emerald-600' : 'text-red-600'}>{a.status}</strong>
+                        Status: <strong className={a.status === 'APPROVED' ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'}>{a.status}</strong>
                       </span>
                     </div>
-                    <p className="text-[11px] text-muted-foreground truncate">{a.comments}</p>
+                    <p className="text-[11px] text-muted-foreground line-clamp-2">{a.comments}</p>
                   </div>
 
-                  <span className="text-[11px] font-mono text-muted-foreground shrink-0">
-                    {a.status === 'APPROVED' ? 'Granted' : 'Denied'}
-                  </span>
+                  <div className="flex items-center gap-2 shrink-0 text-[11px] font-mono">
+                    <span
+                      className={clsx(
+                        'px-2 py-0.5 rounded font-bold text-[10px]',
+                        a.status === 'APPROVED'
+                          ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300'
+                          : 'bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300',
+                      )}
+                    >
+                      {a.status === 'APPROVED' ? 'Granted' : 'Denied'}
+                    </span>
+                    <span className="text-muted-foreground">
+                      {a.createdAt ? new Date(a.createdAt).toLocaleDateString() : ''}
+                    </span>
+                  </div>
                 </div>
               ))}
             </div>

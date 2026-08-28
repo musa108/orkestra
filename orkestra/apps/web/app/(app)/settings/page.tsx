@@ -136,10 +136,10 @@ export default function SettingsPage() {
         breadcrumbs={[{ label: 'Settings' }]}
       />
 
-      <main className="p-8 space-y-6 max-w-5xl mx-auto">
+      <main className="p-4 sm:p-6 lg:p-8 space-y-6 max-w-5xl mx-auto">
         {/* Header Summary */}
         <div>
-          <h1 className="text-base font-bold text-foreground">Studio & System Settings</h1>
+          <h1 className="text-base sm:text-lg font-bold text-foreground">Studio & System Settings</h1>
           <p className="text-xs text-muted-foreground mt-0.5">
             Manage your personal profile, organization settings, role-based access, and AI engine providers.
           </p>

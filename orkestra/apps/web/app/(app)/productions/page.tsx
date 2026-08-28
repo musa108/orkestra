@@ -64,13 +64,13 @@ export default function ProductionsPage() {
 
   return (
     <>
-      <Header title="Productions" />
+      <Header title="Productions" breadcrumbs={[{ label: 'Productions' }]} />
 
-      <main className="p-8 space-y-6 max-w-7xl mx-auto">
+      <main className="p-4 sm:p-6 lg:p-8 space-y-6 max-w-7xl mx-auto">
         {/* Top Control Bar */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
-            <h1 className="text-base font-bold text-foreground">Media Productions</h1>
+            <h1 className="text-base sm:text-lg font-bold text-foreground">Media Productions</h1>
             <p className="text-xs text-muted-foreground mt-0.5">
               Production projects managed by Orkestra's multi-agent orchestration pipeline.
             </p>
@@ -84,8 +84,8 @@ export default function ProductionsPage() {
         </div>
 
         {/* Filter and View Toggles Bar */}
-        <div className="card-enterprise p-3 flex flex-wrap items-center justify-between gap-3">
-          <div className="flex items-center gap-2 flex-1 max-w-md">
+        <div className="card-enterprise p-3 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 flex-1 max-w-xl">
             <div className="relative flex-1">
               <Search size={14} className="absolute left-3 top-2.5 text-muted-foreground" />
               <input
@@ -93,7 +93,7 @@ export default function ProductionsPage() {
                 placeholder="Filter by title, genre, or keyword…"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                className="input-enterprise pl-8 py-1.5 text-xs"
+                className="input-enterprise pl-8 py-1.5 text-xs w-full"
               />
             </div>
 
@@ -108,11 +108,11 @@ export default function ProductionsPage() {
             </select>
           </div>
 
-          <div className="flex items-center gap-1 bg-muted p-0.5 rounded-sm border border-border">
+          <div className="flex items-center justify-end gap-1 bg-muted p-0.5 rounded-sm border border-border self-end sm:self-auto">
             <button
               onClick={() => setViewMode('table')}
               className={clsx(
-                'p-1.5 rounded-xs text-xs font-medium transition-colors',
+                'p-1.5 rounded-xs text-xs font-medium transition-colors cursor-pointer',
                 viewMode === 'table' ? 'bg-card text-foreground shadow-subtle' : 'text-muted-foreground hover:text-foreground',
               )}
               title="Table View"
@@ -122,7 +122,7 @@ export default function ProductionsPage() {
             <button
               onClick={() => setViewMode('grid')}
               className={clsx(
-                'p-1.5 rounded-xs text-xs font-medium transition-colors',
+                'p-1.5 rounded-xs text-xs font-medium transition-colors cursor-pointer',
                 viewMode === 'grid' ? 'bg-card text-foreground shadow-subtle' : 'text-muted-foreground hover:text-foreground',
               )}
               title="Grid View"
@@ -152,60 +152,62 @@ export default function ProductionsPage() {
         {/* Table View */}
         {!loading && !error && filtered && filtered.length > 0 && viewMode === 'table' && (
           <div className="card-enterprise overflow-hidden">
-            <table className="w-full text-left text-xs border-collapse">
-              <thead>
-                <tr className="bg-muted/50 border-b border-border text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
-                  <th className="py-3 px-4">Production Title & Brief</th>
-                  <th className="py-3 px-4">Genre</th>
-                  <th className="py-3 px-4">Budget</th>
-                  <th className="py-3 px-4">Workflow State</th>
-                  <th className="py-3 px-4 text-right">Action</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border">
-                {filtered.map((p) => {
-                  const state = p.workflows?.[0]?.currentState ?? p.status;
-                  return (
-                    <tr key={p.id} className="hover:bg-muted/30 transition-colors group">
-                      <td className="py-3.5 px-4 max-w-sm">
-                        <Link href={`/productions/${p.id}`} className="font-semibold text-foreground hover:text-accent transition-colors block truncate">
-                          {p.title}
-                        </Link>
-                        <p className="text-[11px] text-muted-foreground truncate mt-0.5">
-                          {p.description || 'No description provided.'}
-                        </p>
-                      </td>
-                      <td className="py-3.5 px-4">
-                        <span className="font-medium text-foreground bg-muted px-2 py-0.5 rounded text-[11px]">
-                          {p.genre || 'Media'}
-                        </span>
-                      </td>
-                      <td className="py-3.5 px-4 font-mono num-data text-foreground">
-                        {p.budget ? `$${Number(p.budget).toLocaleString()}` : '—'}
-                      </td>
-                      <td className="py-3.5 px-4">
-                        <StatusBadge status={state} size="sm" />
-                      </td>
-                      <td className="py-3.5 px-4 text-right">
-                        <Link
-                          href={`/productions/${p.id}`}
-                          className="btn-secondary text-[11px] px-2.5 py-1 inline-flex items-center gap-1"
-                        >
-                          <span>Open</span>
-                          <ChevronRight size={12} />
-                        </Link>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs border-collapse min-w-[640px]">
+                <thead>
+                  <tr className="bg-muted/50 border-b border-border text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
+                    <th className="py-3 px-4">Production Title & Brief</th>
+                    <th className="py-3 px-4">Genre</th>
+                    <th className="py-3 px-4">Budget</th>
+                    <th className="py-3 px-4">Workflow State</th>
+                    <th className="py-3 px-4 text-right">Action</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border">
+                  {filtered.map((p) => {
+                    const state = p.workflows?.[0]?.currentState ?? p.status;
+                    return (
+                      <tr key={p.id} className="hover:bg-muted/30 transition-colors group">
+                        <td className="py-3.5 px-4 max-w-sm">
+                          <Link href={`/productions/${p.id}`} className="font-semibold text-foreground hover:text-accent transition-colors block truncate">
+                            {p.title}
+                          </Link>
+                          <p className="text-[11px] text-muted-foreground truncate mt-0.5">
+                            {p.description || 'No description provided.'}
+                          </p>
+                        </td>
+                        <td className="py-3.5 px-4">
+                          <span className="font-medium text-foreground bg-muted px-2 py-0.5 rounded text-[11px]">
+                            {p.genre || 'Media'}
+                          </span>
+                        </td>
+                        <td className="py-3.5 px-4 font-mono num-data text-foreground">
+                          {p.budget ? `$${Number(p.budget).toLocaleString()}` : '—'}
+                        </td>
+                        <td className="py-3.5 px-4">
+                          <StatusBadge status={state} size="sm" />
+                        </td>
+                        <td className="py-3.5 px-4 text-right">
+                          <Link
+                            href={`/productions/${p.id}`}
+                            className="btn-secondary text-[11px] px-2.5 py-1 inline-flex items-center gap-1"
+                          >
+                            <span>Open</span>
+                            <ChevronRight size={12} />
+                          </Link>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
           </div>
         )}
 
         {/* Grid View */}
         {!loading && !error && filtered && filtered.length > 0 && viewMode === 'grid' && (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {filtered.map((p) => {
               const state = p.workflows?.[0]?.currentState ?? p.status;
               return (

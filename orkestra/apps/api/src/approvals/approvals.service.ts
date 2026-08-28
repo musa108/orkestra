@@ -46,9 +46,13 @@ export class ApprovalsService {
       { workflowId: approval.workflowId, productionId: approval.productionId, actor: decidedById },
     );
 
-    // Extract the step name from the approval comments so the engine can mark
-    // that specific step COMPLETED before resuming the execution graph.
-    const stepName = approval.comments?.replace(/^Approval required for step: /, '') ?? undefined;
+    // Extract the step name from the approval proposedChanges or comments
+    const proposedChanges = (approval.proposedChanges as any) || {};
+    const stepName =
+      proposedChanges.stepName ||
+      (approval.action?.startsWith('budget-approval') ? 'budget-approval' : undefined) ||
+      approval.comments?.replace(/^Approval required for step: /, '') ||
+      undefined;
     await this.workflowEngine.resumeAfterApproval(approval.workflowId, stepName);
     return updated;
   }
@@ -72,6 +76,14 @@ export class ApprovalsService {
       { approvalId: id },
       { workflowId: approval.workflowId, productionId: approval.productionId, actor: decidedById },
     );
+
+    const proposedChanges = (approval.proposedChanges as any) || {};
+    const stepName =
+      proposedChanges.stepName ||
+      (approval.action?.startsWith('budget-approval') ? 'budget-approval' : undefined) ||
+      approval.comments?.replace(/^Approval required for step: /, '') ||
+      undefined;
+    await this.workflowEngine.handleApprovalRejection(approval.workflowId, stepName);
 
     return updated;
   }

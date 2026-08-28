@@ -27,7 +27,7 @@ export interface WorkflowStepItem {
   id: string;
   name: string;
   assignedAgent: string;
-  status: 'PENDING' | 'RUNNING' | 'COMPLETED' | 'FAILED' | 'SKIPPED';
+  status: 'PENDING' | 'RUNNING' | 'COMPLETED' | 'FAILED' | 'SKIPPED' | string;
   output?: Record<string, any> | null;
   startedAt?: string;
   completedAt?: string;
@@ -46,13 +46,13 @@ function ReadableValue({ value, depth = 0 }: { value: unknown; depth?: number })
     return <span className="text-muted-foreground">—</span>;
   }
   if (typeof value === 'boolean') {
-    return <span>{value ? 'Yes' : 'No'}</span>;
+    return <span className="font-semibold">{value ? 'Yes' : 'No'}</span>;
   }
   if (typeof value === 'number') {
-    return <span>{value.toLocaleString()}</span>;
+    return <span className="font-mono">{value.toLocaleString()}</span>;
   }
   if (typeof value === 'string') {
-    return <span className="break-words">{value}</span>;
+    return <span className="break-words leading-relaxed">{value}</span>;
   }
   if (Array.isArray(value)) {
     if (value.length === 0) return <span className="text-muted-foreground">None</span>;
@@ -96,11 +96,13 @@ function ReadableValue({ value, depth = 0 }: { value: unknown; depth?: number })
       );
     }
     return (
-      <div className="space-y-1">
+      <div className="space-y-1.5">
         {entries.slice(0, 8).map(([k, v]) => (
-          <div key={k}>
-            <span className="text-muted-foreground text-[10px] uppercase font-mono">{k.replace(/_/g, ' ')}: </span>
-            <ReadableValue value={v} depth={depth + 1} />
+          <div key={k} className="text-xs">
+            <span className="text-muted-foreground text-[10px] uppercase font-mono block">{k.replace(/_/g, ' ')}: </span>
+            <div className="mt-0.5 text-foreground">
+              <ReadableValue value={v} depth={depth + 1} />
+            </div>
           </div>
         ))}
       </div>
@@ -134,44 +136,49 @@ export function WorkflowVisualizer({
   };
 
   return (
-    <div className="card-enterprise overflow-hidden divide-y divide-border">
+    <div className="card-enterprise overflow-hidden divide-y divide-border shadow-sm">
       {/* Header bar */}
-      <div className="p-4 bg-muted/30 flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-2.5">
-          <div className="w-7 h-7 rounded-sm bg-slate-900 text-white dark:bg-white dark:text-slate-900 flex items-center justify-center font-mono font-bold text-xs shadow-sm">
+      <div className="p-4 sm:p-5 bg-muted/30 flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-2.5 min-w-0">
+          <div className="w-8 h-8 rounded-md bg-slate-900 text-white dark:bg-white dark:text-slate-900 flex items-center justify-center font-mono font-bold text-xs shadow-sm shrink-0">
             DAG
           </div>
-          <div>
-            <div className="flex items-center gap-2">
-              <h2 className="text-xs font-bold text-foreground">Multi-Agent Workflow Execution Graph</h2>
+          <div className="min-w-0">
+            <div className="flex items-center gap-2 flex-wrap">
+              <h2 className="text-xs sm:text-sm font-bold text-foreground truncate">Execution Pipeline Graph</h2>
               <span className="text-[10px] font-mono px-1.5 py-0.5 bg-muted border border-border rounded text-muted-foreground">
-                {steps.length} Steps
+                {steps.length} Stages
               </span>
             </div>
-            <p className="text-[11px] text-muted-foreground">
-              Google ADK / Gemini Hierarchical Multi-Agent System with MCP Tool Calling & ClickHouse Intelligence.
+            <p className="text-[11px] text-muted-foreground truncate">
+              Google ADK / Gemini Multi-Agent System with MCP Tool Calling & ClickHouse Intelligence.
             </p>
           </div>
         </div>
 
-        <div className="flex items-center gap-3">
-          <span className="text-xs text-muted-foreground font-medium">State Machine:</span>
+        <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+          <span className="text-xs text-muted-foreground font-medium hidden sm:inline">Status:</span>
           <StatusBadge status={currentState} size="sm" />
         </div>
       </div>
 
       {/* Visual Topological DAG Flow Diagram */}
-      <div className="p-5 bg-card/60 border-b border-border overflow-x-auto">
-        <div className="text-[10px] font-mono text-muted-foreground uppercase tracking-wider mb-3 flex items-center gap-1.5">
-          <Layers size={13} />
-          <span>Dependency Execution Topology</span>
+      <div className="p-4 sm:p-5 bg-card/60 border-b border-border overflow-x-auto">
+        <div className="flex items-center justify-between mb-3">
+          <div className="text-[10px] font-mono text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+            <Layers size={13} />
+            <span>Dependency Execution Topology</span>
+          </div>
+          <span className="text-[10px] font-mono text-muted-foreground block md:hidden">
+            ← Scroll horizontally →
+          </span>
         </div>
 
-        <div className="flex items-center gap-3 min-w-[760px] justify-between text-xs">
+        <div className="flex items-center gap-2.5 sm:gap-3 min-w-[760px] justify-between text-xs py-1">
           {/* Node 1: Director */}
           <div className="flex flex-col items-center">
             <div className={clsx(
-              'px-3 py-2 rounded border flex flex-col items-center gap-1 transition-all',
+              'px-3 py-2 rounded-md border flex flex-col items-center gap-1 transition-all',
               getStepStatus('director-plan') === 'COMPLETED' && 'border-emerald-500 bg-emerald-50/50 dark:bg-emerald-950/20 text-emerald-900 dark:text-emerald-200',
               getStepStatus('director-plan') === 'RUNNING' && 'border-blue-500 bg-blue-50/50 dark:bg-blue-950/20 animate-pulse text-blue-900 dark:text-blue-200',
               getStepStatus('director-plan') === 'PENDING' && 'border-border bg-muted/40 text-muted-foreground'
@@ -186,7 +193,7 @@ export function WorkflowVisualizer({
           {/* Node 2: Script */}
           <div className="flex flex-col items-center">
             <div className={clsx(
-              'px-3 py-2 rounded border flex flex-col items-center gap-1 transition-all',
+              'px-3 py-2 rounded-md border flex flex-col items-center gap-1 transition-all',
               getStepStatus('script-analysis') === 'COMPLETED' && 'border-emerald-500 bg-emerald-50/50 dark:bg-emerald-950/20 text-emerald-900 dark:text-emerald-200',
               getStepStatus('script-analysis') === 'RUNNING' && 'border-blue-500 bg-blue-50/50 dark:bg-blue-950/20 animate-pulse text-blue-900 dark:text-blue-200',
               getStepStatus('script-analysis') === 'PENDING' && 'border-border bg-muted/40 text-muted-foreground'
@@ -201,7 +208,7 @@ export function WorkflowVisualizer({
           {/* Parallel Fan-out: Schedule & Budget */}
           <div className="flex flex-col gap-2">
             <div className={clsx(
-              'px-3 py-1.5 rounded border flex items-center justify-between gap-2 transition-all',
+              'px-3 py-1.5 rounded-md border flex items-center justify-between gap-2 transition-all',
               getStepStatus('schedule-generation') === 'COMPLETED' && 'border-emerald-500 bg-emerald-50/50 dark:bg-emerald-950/20 text-emerald-900 dark:text-emerald-200',
               getStepStatus('schedule-generation') === 'RUNNING' && 'border-blue-500 bg-blue-50/50 dark:bg-blue-950/20 animate-pulse text-blue-900 dark:text-blue-200',
               getStepStatus('schedule-generation') === 'PENDING' && 'border-border bg-muted/40 text-muted-foreground'
@@ -211,7 +218,7 @@ export function WorkflowVisualizer({
             </div>
 
             <div className={clsx(
-              'px-3 py-1.5 rounded border flex items-center justify-between gap-2 transition-all',
+              'px-3 py-1.5 rounded-md border flex items-center justify-between gap-2 transition-all',
               getStepStatus('budget-generation') === 'COMPLETED' && 'border-emerald-500 bg-emerald-50/50 dark:bg-emerald-950/20 text-emerald-900 dark:text-emerald-200',
               getStepStatus('budget-generation') === 'RUNNING' && 'border-blue-500 bg-blue-50/50 dark:bg-blue-950/20 animate-pulse text-blue-900 dark:text-blue-200',
               getStepStatus('budget-generation') === 'PENDING' && 'border-border bg-muted/40 text-muted-foreground'
@@ -226,7 +233,7 @@ export function WorkflowVisualizer({
           {/* Node 4: Risk Agent (ClickHouse Intelligence) */}
           <div className="flex flex-col items-center">
             <div className={clsx(
-              'px-3 py-2 rounded border flex flex-col items-center gap-1 transition-all',
+              'px-3 py-2 rounded-md border flex flex-col items-center gap-1 transition-all',
               getStepStatus('risk-assessment') === 'COMPLETED' && 'border-emerald-500 bg-emerald-50/50 dark:bg-emerald-950/20 text-emerald-900 dark:text-emerald-200',
               getStepStatus('risk-assessment') === 'RUNNING' && 'border-blue-500 bg-blue-50/50 dark:bg-blue-950/20 animate-pulse text-blue-900 dark:text-blue-200',
               getStepStatus('risk-assessment') === 'PENDING' && 'border-border bg-muted/40 text-muted-foreground'
@@ -243,7 +250,7 @@ export function WorkflowVisualizer({
           {/* Node 5: Human Approval Gate */}
           <div className="flex flex-col items-center">
             <div className={clsx(
-              'px-3 py-2 rounded border flex flex-col items-center gap-1 transition-all',
+              'px-3 py-2 rounded-md border flex flex-col items-center gap-1 transition-all',
               getStepStatus('budget-approval') === 'COMPLETED' && 'border-emerald-500 bg-emerald-50/50 dark:bg-emerald-950/20 text-emerald-900 dark:text-emerald-200',
               currentState === 'WAITING_APPROVAL' && 'border-amber-500 bg-amber-50 dark:bg-amber-950/30 text-amber-900 dark:text-amber-200 shadow-sm animate-pulse',
               getStepStatus('budget-approval') === 'PENDING' && currentState !== 'WAITING_APPROVAL' && 'border-border bg-muted/40 text-muted-foreground'
@@ -260,7 +267,7 @@ export function WorkflowVisualizer({
           {/* Node 6: Marketing */}
           <div className="flex flex-col items-center">
             <div className={clsx(
-              'px-3 py-2 rounded border flex flex-col items-center gap-1 transition-all',
+              'px-3 py-2 rounded-md border flex flex-col items-center gap-1 transition-all',
               getStepStatus('marketing-plan') === 'COMPLETED' && 'border-emerald-500 bg-emerald-50/50 dark:bg-emerald-950/20 text-emerald-900 dark:text-emerald-200',
               getStepStatus('marketing-plan') === 'RUNNING' && 'border-blue-500 bg-blue-50/50 dark:bg-blue-950/20 animate-pulse text-blue-900 dark:text-blue-200',
               getStepStatus('marketing-plan') === 'PENDING' && 'border-border bg-muted/40 text-muted-foreground'
@@ -275,7 +282,7 @@ export function WorkflowVisualizer({
           {/* Node 7: Analytics */}
           <div className="flex flex-col items-center">
             <div className={clsx(
-              'px-3 py-2 rounded border flex flex-col items-center gap-1 transition-all',
+              'px-3 py-2 rounded-md border flex flex-col items-center gap-1 transition-all',
               getStepStatus('analytics-summary') === 'COMPLETED' && 'border-emerald-500 bg-emerald-50/50 dark:bg-emerald-950/20 text-emerald-900 dark:text-emerald-200',
               getStepStatus('analytics-summary') === 'RUNNING' && 'border-blue-500 bg-blue-50/50 dark:bg-blue-950/20 animate-pulse text-blue-900 dark:text-blue-200',
               getStepStatus('analytics-summary') === 'PENDING' && 'border-border bg-muted/40 text-muted-foreground'
@@ -288,7 +295,7 @@ export function WorkflowVisualizer({
       </div>
 
       {/* Horizontal Step Timeline Track */}
-      <div className="p-4 overflow-x-auto bg-muted/10">
+      <div className="p-3 sm:p-4 overflow-x-auto bg-muted/10">
         <div className="flex items-center gap-2 min-w-max">
           {steps.map((step, idx) => {
             const isSelected = selectedStepIndex === idx;
@@ -302,9 +309,9 @@ export function WorkflowVisualizer({
                   type="button"
                   onClick={() => setSelectedStepIndex(idx)}
                   className={clsx(
-                    'flex items-center gap-2.5 px-3 py-2 rounded-sm border text-left transition-all cursor-pointer group',
+                    'flex items-center gap-2 px-3 py-2 rounded-md border text-left transition-all cursor-pointer group',
                     isSelected
-                      ? 'bg-card border-slate-900 dark:border-slate-100 shadow-sm'
+                      ? 'bg-card border-slate-900 dark:border-slate-100 shadow-sm ring-1 ring-slate-900/10 dark:ring-white/10'
                       : 'bg-card/70 border-border hover:border-slate-400 dark:hover:border-slate-600',
                   )}
                 >
@@ -322,7 +329,7 @@ export function WorkflowVisualizer({
 
                   <div className="min-w-0 pr-1">
                     <div className="flex items-center gap-1.5">
-                      <p className="text-xs font-semibold text-foreground truncate max-w-[130px]">{step.name}</p>
+                      <p className="text-xs font-semibold text-foreground truncate max-w-[120px] sm:max-w-[140px]">{step.name}</p>
                     </div>
                     <p className="text-[10px] font-mono text-muted-foreground flex items-center gap-1 mt-0.5">
                       <Bot size={10} />
@@ -342,9 +349,9 @@ export function WorkflowVisualizer({
 
       {/* Step Inspector Panel */}
       {selectedStep && (
-        <div className="p-5 bg-card space-y-4">
+        <div className="p-4 sm:p-5 bg-card space-y-4">
           <div className="flex flex-wrap items-center justify-between pb-3 border-b border-border gap-3">
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2.5 flex-wrap">
               <span className="text-xs font-bold text-foreground">
                 Step #{selectedStepIndex + 1}: {selectedStep.name}
               </span>
@@ -355,12 +362,12 @@ export function WorkflowVisualizer({
             </div>
 
             {selectedStep.output && (
-              <div className="flex items-center gap-2">
-                <div className="flex bg-muted rounded-sm p-0.5 border border-border text-[11px]">
+              <div className="flex items-center gap-2 flex-wrap">
+                <div className="flex bg-muted rounded-md p-0.5 border border-border text-[11px]">
                   <button
                     onClick={() => setActiveTab('summary')}
                     className={clsx(
-                      'px-2.5 py-0.5 rounded-xs font-medium transition-colors',
+                      'px-2.5 py-1 rounded-xs font-medium transition-colors cursor-pointer',
                       activeTab === 'summary' ? 'bg-card text-foreground shadow-subtle' : 'text-muted-foreground hover:text-foreground',
                     )}
                   >
@@ -369,7 +376,7 @@ export function WorkflowVisualizer({
                   <button
                     onClick={() => setActiveTab('json')}
                     className={clsx(
-                      'px-2.5 py-0.5 rounded-xs font-medium transition-colors',
+                      'px-2.5 py-1 rounded-xs font-medium transition-colors cursor-pointer',
                       activeTab === 'json' ? 'bg-card text-foreground shadow-subtle' : 'text-muted-foreground hover:text-foreground',
                     )}
                   >
@@ -379,7 +386,7 @@ export function WorkflowVisualizer({
 
                 <button
                   onClick={copyJson}
-                  className="btn-secondary px-2.5 py-1 text-[11px]"
+                  className="btn-secondary px-2.5 py-1 text-[11px] cursor-pointer"
                   title="Copy JSON payload"
                 >
                   {copied ? <Check size={12} className="text-emerald-600" /> : <Copy size={12} />}
@@ -394,18 +401,18 @@ export function WorkflowVisualizer({
             activeTab === 'summary' ? (
               <div className="space-y-4">
                 {/* Telemetry Bar */}
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 p-3 rounded bg-muted/30 border border-border text-xs">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 p-3 rounded-md bg-muted/30 border border-border text-xs">
                   <div>
                     <span className="text-muted-foreground block text-[10px] uppercase font-mono">Agent Identity</span>
                     <span className="font-mono font-medium text-foreground">{selectedStep.assignedAgent}</span>
                   </div>
                   <div>
                     <span className="text-muted-foreground block text-[10px] uppercase font-mono">Inference Engine</span>
-                    <span className="font-mono font-semibold text-accent">Gemini 2.0 Flash / Pro</span>
+                    <span className="font-mono font-semibold text-accent">Gemini 2.0 / ADK</span>
                   </div>
                   <div>
                     <span className="text-muted-foreground block text-[10px] uppercase font-mono">Tool Integration</span>
-                    <span className="font-mono font-medium text-foreground">FastMCP Streamable HTTP</span>
+                    <span className="font-mono font-medium text-foreground">FastMCP Streamable</span>
                   </div>
                   <div>
                     <span className="text-muted-foreground block text-[10px] uppercase font-mono">Analytical Store</span>
@@ -417,8 +424,8 @@ export function WorkflowVisualizer({
 
                 {/* If this is the Risk Agent step, display the dedicated high-impact risk card */}
                 {selectedStep.assignedAgent === 'RISK' && selectedStep.output.riskLevel ? (
-                  <div className="p-4 rounded border border-amber-300 dark:border-amber-700/60 bg-amber-50/40 dark:bg-amber-950/20 space-y-3">
-                    <div className="flex items-center justify-between">
+                  <div className="p-4 rounded-md border border-amber-300 dark:border-amber-700/60 bg-amber-50/40 dark:bg-amber-950/20 space-y-3">
+                    <div className="flex items-center justify-between gap-2 flex-wrap">
                       <div className="flex items-center gap-2">
                         <ShieldAlert size={16} className="text-amber-700 dark:text-amber-400" />
                         <span className="text-xs font-bold text-foreground">Data-Grounded Risk Assessment</span>
@@ -440,13 +447,13 @@ export function WorkflowVisualizer({
                         </span>
                         <div className="space-y-1.5">
                           {selectedStep.output.evidence.map((ev: any, i: number) => (
-                            <div key={i} className="p-2 rounded bg-card/80 border border-border text-xs flex items-start gap-2">
-                              <span className="px-1.5 py-0.2 rounded font-mono text-[9px] bg-slate-900 text-white dark:bg-white dark:text-slate-900 shrink-0 mt-0.5">
+                            <div key={i} className="p-2.5 rounded bg-card/80 border border-border text-xs flex items-start gap-2">
+                              <span className="px-1.5 py-0.5 rounded font-mono text-[9px] bg-slate-900 text-white dark:bg-white dark:text-slate-900 shrink-0 mt-0.5">
                                 {ev.source || 'clickhouse'}
                               </span>
                               <div className="min-w-0">
                                 <span className="font-semibold text-foreground mr-1">{ev.factor?.replace(/_/g, ' ')}:</span>
-                                <span className="text-muted-foreground">{ev.finding}</span>
+                                <span className="text-muted-foreground leading-relaxed">{ev.finding}</span>
                               </div>
                             </div>
                           ))}
@@ -472,9 +479,9 @@ export function WorkflowVisualizer({
                     <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider block">
                       Structured Output Attributes
                     </span>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                       {Object.entries(selectedStep.output).map(([k, v]) => (
-                        <div key={k} className="p-3 rounded bg-muted/30 border border-border">
+                        <div key={k} className="p-3 rounded-md bg-muted/30 border border-border">
                           <span className="text-[10px] font-mono text-muted-foreground uppercase tracking-wide block mb-1">
                             {k.replace(/_/g, ' ')}
                           </span>
@@ -488,12 +495,12 @@ export function WorkflowVisualizer({
                 )}
               </div>
             ) : (
-              <div className="bg-slate-950 text-slate-100 rounded p-4 font-mono text-xs max-h-80 overflow-y-auto border border-border">
-                <pre>{JSON.stringify(selectedStep.output, null, 2)}</pre>
+              <div className="bg-slate-950 text-slate-100 rounded-md p-4 font-mono text-xs max-h-80 overflow-y-auto border border-border">
+                <pre className="whitespace-pre-wrap break-all">{JSON.stringify(selectedStep.output, null, 2)}</pre>
               </div>
             )
           ) : (
-            <div className="p-8 text-center text-xs text-muted-foreground bg-muted/20 border border-border rounded">
+            <div className="p-8 text-center text-xs text-muted-foreground bg-muted/20 border border-border rounded-md">
               <Clock size={20} className="mx-auto mb-2 text-muted-foreground/60" />
               <span className="font-medium text-foreground">Step awaiting agent execution in pipeline graph.</span>
             </div>

@@ -33,7 +33,7 @@ interface WorkflowData {
   id: string;
   currentState: string;
   steps: WorkflowStep[];
-  approvals: { id: string; status: string; comments: string; riskLevel?: string }[];
+  approvals: { id: string; status: string; comments: string; riskLevel?: string; proposedChanges?: any; action?: string }[];
 }
 
 interface Production {
@@ -86,6 +86,7 @@ export default function ProductionDetailPage() {
       'stepCompleted',
       'approvalRequested',
       'approvalGranted',
+      'approvalRejected',
       'workflowCompleted',
       'workflowFailed',
     ];
@@ -109,10 +110,10 @@ export default function ProductionDetailPage() {
     }
   }
 
-  async function decide(approvalId: string, action: 'approve' | 'reject') {
+  async function decide(approvalId: string, action: 'approve' | 'reject', comments?: string) {
     try {
-      if (action === 'approve') await api.approve(approvalId);
-      else await api.reject(approvalId);
+      if (action === 'approve') await api.approve(approvalId, comments);
+      else await api.reject(approvalId, comments);
       await loadProduction();
     } catch (e) {
       setError(e instanceof ApiError ? e.message : 'Failed to record approval decision.');
@@ -123,7 +124,7 @@ export default function ProductionDetailPage() {
     return (
       <>
         <Header title="Production Details" />
-        <main className="p-8 max-w-7xl mx-auto">
+        <main className="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto">
           <LoadingState label="Loading production workspace & workflow data…" />
         </main>
       </>
@@ -134,7 +135,7 @@ export default function ProductionDetailPage() {
     return (
       <>
         <Header title="Production Details" />
-        <main className="p-8 max-w-7xl mx-auto">
+        <main className="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto">
           <ErrorState message={error} onRetry={loadProduction} />
         </main>
       </>
@@ -155,15 +156,15 @@ export default function ProductionDetailPage() {
         ]}
       />
 
-      <main className="p-8 space-y-6 max-w-7xl mx-auto">
+      <main className="p-4 sm:p-6 lg:p-8 space-y-6 max-w-7xl mx-auto">
         {error && <ErrorState message={error} onRetry={loadProduction} />}
 
         {/* Executive Project Header Card */}
-        <div className="card-enterprise p-6 space-y-4">
+        <div className="card-enterprise p-4 sm:p-6 space-y-4 shadow-sm">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-            <div className="space-y-1.5 min-w-0">
+            <div className="space-y-1.5 min-w-0 flex-1">
               <div className="flex items-center gap-2.5 flex-wrap">
-                <h1 className="text-xl font-bold text-foreground truncate">{production.title}</h1>
+                <h1 className="text-lg sm:text-xl font-bold text-foreground truncate">{production.title}</h1>
                 <span className="text-xs font-medium px-2.5 py-0.5 rounded bg-muted text-muted-foreground border border-border">
                   {production.genre || 'Documentary'}
                 </span>
@@ -176,12 +177,12 @@ export default function ProductionDetailPage() {
               </p>
             </div>
 
-            <div className="flex items-center gap-2 shrink-0">
+            <div className="flex items-center gap-2 shrink-0 w-full sm:w-auto">
               {!workflow ? (
                 <button
                   onClick={handleStart}
                   disabled={starting}
-                  className="btn-accent text-xs px-4 py-2"
+                  className="btn-accent text-xs px-4 py-2 w-full sm:w-auto justify-center cursor-pointer"
                 >
                   <Play size={14} />
                   <span>{starting ? 'Initializing Agents…' : 'Launch AI Workflow'}</span>
@@ -189,7 +190,7 @@ export default function ProductionDetailPage() {
               ) : (
                 <button
                   onClick={loadProduction}
-                  className="btn-secondary text-xs px-3 py-2"
+                  className="btn-secondary text-xs px-3 py-2 w-full sm:w-auto justify-center cursor-pointer"
                   title="Refresh state"
                 >
                   <RefreshCw size={13} />
@@ -200,7 +201,7 @@ export default function ProductionDetailPage() {
           </div>
 
           {/* Quick Metrics Bar */}
-          <div className="pt-4 border-t border-border grid grid-cols-2 sm:grid-cols-4 gap-4 text-xs">
+          <div className="pt-4 border-t border-border grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 text-xs">
             <div>
               <span className="text-muted-foreground block text-[11px]">Target Budget</span>
               <span className="font-mono font-semibold text-foreground">
@@ -209,7 +210,7 @@ export default function ProductionDetailPage() {
             </div>
             <div>
               <span className="text-muted-foreground block text-[11px]">Orchestrator Engine</span>
-              <span className="font-mono font-semibold text-accent">Gemini 1.5 Pro</span>
+              <span className="font-mono font-semibold text-accent">Gemini 2.0 Flash</span>
             </div>
             <div>
               <span className="text-muted-foreground block text-[11px]">Total Agent Steps</span>
@@ -228,11 +229,11 @@ export default function ProductionDetailPage() {
 
         {/* Human Governance Approval Banner (Urgent Action) */}
         {pendingApprovals.length > 0 && (
-          <div className="card-enterprise border-amber-300 dark:border-amber-700/60 bg-amber-50/50 dark:bg-amber-950/20 p-5 space-y-4 shadow-sm">
-            <div className="flex items-center justify-between">
+          <div className="card-enterprise border-amber-300 dark:border-amber-700/60 bg-amber-50/50 dark:bg-amber-950/20 p-4 sm:p-5 space-y-4 shadow-sm animate-in fade-in">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
               <div className="flex items-center gap-2 text-amber-800 dark:text-amber-300 font-semibold text-xs">
                 <ShieldCheck size={16} />
-                <span>Executive AI Decision Review Gate: Human Producer Authorization Required</span>
+                <span>Executive AI Decision Review Gate: Human Authorization Required</span>
               </div>
               <span className="text-[10px] font-mono text-muted-foreground">
                 ClickHouse Historical Intelligence Grounded
@@ -243,19 +244,19 @@ export default function ProductionDetailPage() {
               {pendingApprovals.map((a) => (
                 <div
                   key={a.id}
-                  className="p-3.5 rounded-sm bg-card border border-border flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-subtle"
+                  className="p-3.5 sm:p-4 rounded-md bg-card border border-border flex flex-col md:flex-row md:items-center justify-between gap-3 shadow-subtle"
                 >
-                  <div className="space-y-1">
-                    <div className="flex items-center gap-2">
+                  <div className="space-y-1 min-w-0 flex-1">
+                    <div className="flex items-center gap-2 flex-wrap">
                       <span className="text-[10px] font-mono font-semibold px-1.5 py-0.5 rounded bg-amber-100 dark:bg-amber-950 text-amber-800 dark:text-amber-300 border border-amber-200 dark:border-amber-800">
                         {a.riskLevel || 'HIGH'} Risk Gate
                       </span>
                       <span className="text-xs text-foreground font-semibold">Budget Authorization & Risk Mitigation</span>
                     </div>
-                    <p className="text-xs text-muted-foreground">{a.comments}</p>
+                    <p className="text-xs text-muted-foreground leading-relaxed">{a.comments}</p>
                   </div>
 
-                  <div className="flex items-center gap-2 shrink-0">
+                  <div className="flex items-center gap-2 shrink-0 w-full sm:w-auto">
                     <button
                       onClick={() =>
                         setSelectedDecision({
@@ -263,11 +264,13 @@ export default function ProductionDetailPage() {
                           workflowId: workflow!.id,
                           productionId: production.id,
                           productionTitle: production.title,
+                          action: a.action,
                           riskLevel: a.riskLevel,
                           comments: a.comments,
+                          proposedChanges: a.proposedChanges,
                         })
                       }
-                      className="btn-primary text-xs px-4 py-2 flex items-center gap-1.5 shadow-sm"
+                      className="btn-primary text-xs px-4 py-2 flex items-center justify-center gap-1.5 shadow-sm w-full sm:w-auto cursor-pointer"
                     >
                       <span>Review AI Decision & Evidence</span>
                       <ShieldCheck size={14} />
@@ -287,11 +290,11 @@ export default function ProductionDetailPage() {
             steps={workflow.steps as any}
           />
         ) : (
-          <div className="card-enterprise p-12 text-center text-xs text-muted-foreground space-y-3">
+          <div className="card-enterprise p-8 sm:p-12 text-center text-xs text-muted-foreground space-y-3 shadow-sm">
             <Film size={28} className="mx-auto text-muted-foreground/60" />
             <div>
               <p className="font-semibold text-foreground text-sm">No workflow initialized yet</p>
-              <p className="mt-1">
+              <p className="mt-1 max-w-md mx-auto">
                 Click "Launch AI Workflow" above to begin autonomous script analysis, budget estimation, and scheduling.
               </p>
             </div>
@@ -303,8 +306,8 @@ export default function ProductionDetailPage() {
       <DecisionReviewModal
         decision={selectedDecision}
         onClose={() => setSelectedDecision(null)}
-        onApprove={(id) => decide(id, 'approve')}
-        onReject={(id) => decide(id, 'reject')}
+        onApprove={(id, comments) => decide(id, 'approve', comments)}
+        onReject={(id, comments) => decide(id, 'reject', comments)}
       />
     </>
   );

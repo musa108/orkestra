@@ -219,9 +219,12 @@ export class WorkflowEngineService {
         productionId,
         requestedById,
         requestedByType: 'AGENT',
-        action: 'Budget Authorization & Risk Mitigation',
+        action: stepName || 'budget-approval',
         riskLevel: riskLevel as any,
-        proposedChanges: riskOutput,
+        proposedChanges: {
+          ...riskOutput,
+          stepName,
+        },
         status: ApprovalStatus.PENDING,
         comments,
         expiresAt: new Date(Date.now() + 48 * 60 * 60 * 1000), // 48h default expiry
@@ -236,26 +239,64 @@ export class WorkflowEngineService {
   }
 
   /** Called by ApprovalsService once a human approves — resumes execution.
-   *  Not directly reachable from a controller (ApprovalsService already
-   *  verified organization ownership of the approval before calling this),
-   *  so no separate org check needed here.
-   *
-   *  The approval-gated step is marked COMPLETED here (human approval IS the
-   *  step's output), then the graph continues. */
+   *  The approval-gated step is marked COMPLETED here, then the graph continues. */
   async resumeAfterApproval(workflowId: string, approvedStepName?: string) {
-    if (approvedStepName) {
-      const step = await this.prisma.workflowStep.findFirst({
-        where: { workflowId, name: approvedStepName },
+    let step = approvedStepName
+      ? await this.prisma.workflowStep.findFirst({
+          where: { workflowId, name: approvedStepName },
+        })
+      : null;
+
+    if (!step) {
+      // Fallback: find any step in this workflow that requires approval and is PENDING
+      const approvalStepNames = MVP_WORKFLOW_STEPS.filter((s) => s.requiresApproval).map((s) => s.name);
+      step = await this.prisma.workflowStep.findFirst({
+        where: { workflowId, name: { in: approvalStepNames }, status: WorkflowStepStatus.PENDING },
       });
-      if (step) {
-        await this.prisma.workflowStep.update({
-          where: { id: step.id },
-          data: { status: WorkflowStepStatus.COMPLETED, completedAt: new Date(), output: { approvedByHuman: true } },
-        });
-      }
     }
+
+    if (step) {
+      await this.prisma.workflowStep.update({
+        where: { id: step.id },
+        data: {
+          status: WorkflowStepStatus.COMPLETED,
+          completedAt: new Date(),
+          output: { approvedByHuman: true, stepName: step.name },
+        },
+      });
+    }
+
     await this.transitionTo(workflowId, WorkflowState.RUNNING);
     await this.runNextReadySteps(workflowId);
+  }
+
+  /** Called by ApprovalsService when an approval request is rejected by human executive. */
+  async handleApprovalRejection(workflowId: string, rejectedStepName?: string) {
+    let step = rejectedStepName
+      ? await this.prisma.workflowStep.findFirst({
+          where: { workflowId, name: rejectedStepName },
+        })
+      : null;
+
+    if (!step) {
+      const approvalStepNames = MVP_WORKFLOW_STEPS.filter((s) => s.requiresApproval).map((s) => s.name);
+      step = await this.prisma.workflowStep.findFirst({
+        where: { workflowId, name: { in: approvalStepNames }, status: WorkflowStepStatus.PENDING },
+      });
+    }
+
+    if (step) {
+      await this.prisma.workflowStep.update({
+        where: { id: step.id },
+        data: {
+          status: WorkflowStepStatus.FAILED,
+          completedAt: new Date(),
+          output: { approvedByHuman: false, error: 'Approval rejected by human executive' },
+        },
+      });
+    }
+
+    await this.fail(workflowId, 'Workflow halted: human approval was rejected.');
   }
 
   async pause(workflowId: string, organizationId: string) {

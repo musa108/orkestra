@@ -127,8 +127,10 @@ export const api = {
     apiFetch('/workflows/start', { method: 'POST', body: JSON.stringify({ productionId, brief }) }),
   workflow: (id: string) => apiFetch(`/workflows/${id}`),
   approvals: () => apiFetch('/approvals'),
-  approve: (id: string) => apiFetch(`/approvals/${id}/approve`, { method: 'POST', body: '{}' }),
-  reject: (id: string) => apiFetch(`/approvals/${id}/reject`, { method: 'POST', body: '{}' }),
+  approve: (id: string, comments?: string) =>
+    apiFetch(`/approvals/${id}/approve`, { method: 'POST', body: JSON.stringify({ comments }) }),
+  reject: (id: string, comments?: string) =>
+    apiFetch(`/approvals/${id}/reject`, { method: 'POST', body: JSON.stringify({ comments }) }),
   dashboard: () => apiFetch('/analytics/dashboard'),
   productionIntelligence: (genre?: string, budget?: number) => {
     const params = [];

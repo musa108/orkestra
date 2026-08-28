@@ -275,8 +275,7 @@ export default function LandingPage() {
         <div className="max-w-7xl mx-auto px-6 relative space-y-12">
           {/* Hero Typography */}
           <div className="max-w-3xl space-y-5">
-            <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-full bg-muted border border-border text-[11px] font-mono font-medium text-foreground">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+            <div className="inline-flex items-center gap-2 px-2.5 py-1 text-[11px] font-mono font-medium text-foreground"> 
               <span>ENTERPRISE AI ORCHESTRATION</span>
             </div>
 

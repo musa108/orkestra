@@ -13,6 +13,7 @@ import {
   ChevronDown,
   Sun,
   Moon,
+  X,
 } from 'lucide-react';
 import clsx from 'clsx';
 import { api, clearAccessToken } from '@/lib/api';
@@ -32,7 +33,12 @@ interface NavSection {
   items: NavItem[];
 }
 
-export function Sidebar() {
+interface SidebarProps {
+  mobileOpen?: boolean;
+  onMobileClose?: () => void;
+}
+
+export function Sidebar({ mobileOpen = false, onMobileClose }: SidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
   const { theme, toggleTheme } = useTheme();
@@ -55,6 +61,13 @@ export function Sidebar() {
     api.me().then((u: any) => setUser(u)).catch(() => void 0);
     loadData();
   }, [loadData]);
+
+  // Close mobile drawer on route change
+  useEffect(() => {
+    if (mobileOpen && onMobileClose) {
+      onMobileClose();
+    }
+  }, [pathname]);
 
   useEffect(() => {
     const socket = getWorkflowSocket();
@@ -117,156 +130,184 @@ export function Sidebar() {
   ];
 
   return (
-    <aside className="w-64 shrink-0 bg-card border-r border-border h-screen sticky top-0 flex flex-col justify-between z-20 select-none">
-      {/* Top section */}
-      <div className="flex flex-col flex-1 min-h-0 overflow-y-auto">
-        {/* Workspace Brand Header */}
-        <div className="p-3 border-b border-border">
-          <button
-            type="button"
-            className="w-full flex items-center justify-between p-2 rounded-sm hover:bg-muted/80 transition-colors text-left group"
-          >
-            <div className="flex items-center gap-2.5 min-w-0">
+    <>
+      {/* Mobile Backdrop Overlay */}
+      {mobileOpen && (
+        <div
+          className="fixed inset-0 z-40 bg-slate-950/60 backdrop-blur-xs lg:hidden animate-in fade-in duration-200"
+          onClick={onMobileClose}
+        />
+      )}
+
+      <aside
+        className={clsx(
+          'w-64 shrink-0 bg-card border-r border-border h-screen flex flex-col justify-between select-none transition-transform duration-200 z-50',
+          // Desktop: sticky and fixed in flow
+          'lg:sticky lg:top-0 lg:translate-x-0 lg:z-20',
+          // Mobile: drawer positioning
+          'fixed top-0 bottom-0 left-0',
+          mobileOpen ? 'translate-x-0 shadow-2xl' : '-translate-x-full lg:translate-x-0',
+        )}
+      >
+        {/* Top section */}
+        <div className="flex flex-col flex-1 min-h-0 overflow-y-auto">
+          {/* Workspace Brand Header */}
+          <div className="p-3 border-b border-border flex items-center justify-between">
+            <div className="flex items-center gap-2.5 min-w-0 p-1">
               <div className="w-8 h-8 rounded-sm bg-slate-900 dark:bg-white text-white dark:text-slate-900 flex items-center justify-center font-mono font-bold text-xs shrink-0 shadow-subtle">
                 <OrkestraMark size={18} />
               </div>
               <div className="min-w-0">
                 <div className="flex items-center gap-1.5">
                   <span className="font-semibold text-xs text-foreground truncate">Orkestra</span>
+                  <span className="font-mono text-[9px] px-1 py-0.2 rounded bg-muted border border-border text-muted-foreground">
+                    v2.0
+                  </span>
                 </div>
-                <p className="text-[11px] text-muted-foreground truncate">AI Orchestration</p>
+                <p className="text-[11px] text-muted-foreground truncate">Enterprise Orchestrator</p>
               </div>
             </div>
-            <ChevronDown size={14} className="text-muted-foreground group-hover:text-foreground transition-colors shrink-0" />
-          </button>
-        </div>
 
-        {/* Navigation Sections */}
-        <nav className="p-3 space-y-5 flex-1">
-          {sections.map((section) => (
-            <div key={section.title} className="space-y-1">
-              <h2 className="px-2 text-[10px] font-semibold tracking-wider text-muted-foreground uppercase">
-                {section.title}
-              </h2>
-              <div className="space-y-0.5 pt-1">
-                {section.items.map(({ href, label, icon: Icon, badge, badgeTone }) => {
-                  const active = href === '/dashboard' ? pathname === '/dashboard' : pathname?.startsWith(href);
-                  return (
-                    <Link
-                      key={href}
-                      href={href}
-                      className={clsx(
-                        'flex items-center justify-between px-2.5 py-1.5 rounded-sm text-xs font-medium transition-all group',
-                        active
-                          ? 'bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900 font-semibold shadow-subtle'
-                          : 'text-muted-foreground hover:text-foreground hover:bg-muted/70',
-                      )}
-                    >
-                      <div className="flex items-center gap-2.5 min-w-0">
-                        <Icon
-                          size={15}
-                          className={clsx(
-                            'shrink-0 transition-colors',
-                            active
-                              ? 'text-white dark:text-slate-900'
-                              : 'text-muted-foreground group-hover:text-foreground',
-                          )}
-                        />
-                        <span className="truncate">{label}</span>
-                      </div>
-                      {badge && (
-                        <span
-                          className={clsx(
-                            'text-[10px] font-mono font-medium px-1.5 py-0.5 rounded-full shrink-0',
-                            active
-                              ? 'bg-white/20 text-white dark:bg-slate-900/20 dark:text-slate-900'
-                              : badgeTone === 'warning'
-                                ? 'bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300'
-                                : badgeTone === 'success'
-                                  ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300'
-                                  : 'bg-muted text-muted-foreground',
-                          )}
-                        >
-                          {badge}
-                        </span>
-                      )}
-                    </Link>
-                  );
-                })}
-              </div>
-            </div>
-          ))}
-        </nav>
-
-        {/* Live Cluster Heartbeat Pill */}
-        <div className="p-3 mx-3 mb-2 bg-muted/60 border border-border/80 rounded-sm">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-1.5 text-[11px] font-medium text-foreground">
-              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-              <span>Orchestrator Cluster</span>
-            </div>
-            <span className="text-[10px] font-mono text-muted-foreground">READY</span>
-          </div>
-          <p className="text-[10px] text-muted-foreground mt-1">
-            Autonomous agent workforce operational.
-          </p>
-        </div>
-      </div>
-
-      {/* Bottom Footer Section */}
-      <div className="p-3 border-t border-border space-y-2 bg-card">
-        {/* Settings & Theme Row */}
-        <div className="flex items-center justify-between gap-1">
-          <Link
-            href="/settings"
-            className={clsx(
-              'flex-1 flex items-center gap-2 px-2.5 py-1.5 rounded-sm text-xs font-medium transition-colors',
-              pathname?.startsWith('/settings')
-                ? 'bg-muted text-foreground font-semibold'
-                : 'text-muted-foreground hover:text-foreground hover:bg-muted/70',
-            )}
-          >
-            <Settings size={14} />
-            <span>Settings</span>
-          </Link>
-
-          <button
-            onClick={toggleTheme}
-            type="button"
-            title={`Switch to ${theme === 'light' ? 'Dark' : 'Light'} Mode`}
-            className="p-1.5 rounded-sm text-muted-foreground hover:text-foreground hover:bg-muted/70 transition-colors"
-          >
-            {theme === 'light' ? <Moon size={14} /> : <Sun size={14} />}
-          </button>
-        </div>
-
-        {/* User Card */}
-        {user ? (
-          <div className="flex items-center justify-between p-2 rounded-sm bg-muted/40 border border-border">
-            <div className="flex items-center gap-2 min-w-0">
-              <div className="w-7 h-7 rounded-sm bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-200 flex items-center justify-center font-semibold text-[11px] shrink-0">
-                {(user.firstName?.[0] || 'U') + (user.lastName?.[0] || '')}
-              </div>
-              <div className="min-w-0">
-                <p className="text-xs font-medium text-foreground truncate">
-                  {user.firstName || 'User'} {user.lastName || ''}
-                </p>
-                <p className="text-[10px] text-muted-foreground truncate">{user.email}</p>
-              </div>
-            </div>
+            {/* Close button visible only on mobile */}
             <button
-              onClick={handleLogout}
-              title="Log out"
-              className="p-1.5 rounded-sm text-muted-foreground hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors"
+              type="button"
+              onClick={onMobileClose}
+              className="lg:hidden p-1.5 rounded-sm hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+              aria-label="Close sidebar"
             >
-              <LogOut size={13} />
+              <X size={16} />
             </button>
           </div>
-        ) : (
-          <div className="h-10 bg-muted/40 rounded-sm animate-pulse" />
-        )}
-      </div>
-    </aside>
+
+          {/* Navigation Sections */}
+          <nav className="p-3 space-y-5 flex-1">
+            {sections.map((section) => (
+              <div key={section.title} className="space-y-1">
+                <h2 className="px-2 text-[10px] font-semibold tracking-wider text-muted-foreground uppercase">
+                  {section.title}
+                </h2>
+                <div className="space-y-0.5 pt-1">
+                  {section.items.map(({ href, label, icon: Icon, badge, badgeTone }) => {
+                    const active = href === '/dashboard' ? pathname === '/dashboard' : pathname?.startsWith(href);
+                    return (
+                      <Link
+                        key={href}
+                        href={href}
+                        onClick={onMobileClose}
+                        className={clsx(
+                          'flex items-center justify-between px-2.5 py-1.5 rounded-sm text-xs font-medium transition-all group',
+                          active
+                            ? 'bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900 font-semibold shadow-subtle'
+                            : 'text-muted-foreground hover:text-foreground hover:bg-muted/70',
+                        )}
+                      >
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <Icon
+                            size={15}
+                            className={clsx(
+                              'shrink-0 transition-colors',
+                              active
+                                ? 'text-white dark:text-slate-900'
+                                : 'text-muted-foreground group-hover:text-foreground',
+                            )}
+                          />
+                          <span className="truncate">{label}</span>
+                        </div>
+                        {badge && (
+                          <span
+                            className={clsx(
+                              'text-[10px] font-mono font-medium px-1.5 py-0.5 rounded-full shrink-0',
+                              active
+                                ? 'bg-white/20 text-white dark:bg-slate-900/20 dark:text-slate-900'
+                                : badgeTone === 'warning'
+                                  ? 'bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300'
+                                  : badgeTone === 'success'
+                                    ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300'
+                                    : 'bg-muted text-muted-foreground',
+                            )}
+                          >
+                            {badge}
+                          </span>
+                        )}
+                      </Link>
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
+          </nav>
+
+          {/* Live Cluster Heartbeat Pill */}
+          <div className="p-3 mx-3 mb-2 bg-muted/60 border border-border/80 rounded-sm">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-1.5 text-[11px] font-medium text-foreground">
+                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                <span>Orchestrator Cluster</span>
+              </div>
+              <span className="text-[10px] font-mono text-muted-foreground">READY</span>
+            </div>
+            <p className="text-[10px] text-muted-foreground mt-1">
+              Autonomous workforce operational.
+            </p>
+          </div>
+        </div>
+
+        {/* Bottom Footer Section */}
+        <div className="p-3 border-t border-border space-y-2 bg-card">
+          {/* Settings & Theme Row */}
+          <div className="flex items-center justify-between gap-1">
+            <Link
+              href="/settings"
+              onClick={onMobileClose}
+              className={clsx(
+                'flex-1 flex items-center gap-2 px-2.5 py-1.5 rounded-sm text-xs font-medium transition-colors',
+                pathname?.startsWith('/settings')
+                  ? 'bg-muted text-foreground font-semibold'
+                  : 'text-muted-foreground hover:text-foreground hover:bg-muted/70',
+              )}
+            >
+              <Settings size={14} />
+              <span>Settings</span>
+            </Link>
+
+            <button
+              onClick={toggleTheme}
+              type="button"
+              title={`Switch to ${theme === 'light' ? 'Dark' : 'Light'} Mode`}
+              className="p-1.5 rounded-sm text-muted-foreground hover:text-foreground hover:bg-muted/70 transition-colors cursor-pointer"
+            >
+              {theme === 'light' ? <Moon size={14} /> : <Sun size={14} />}
+            </button>
+          </div>
+
+          {/* User Card */}
+          {user ? (
+            <div className="flex items-center justify-between p-2 rounded-sm bg-muted/40 border border-border">
+              <div className="flex items-center gap-2 min-w-0">
+                <div className="w-7 h-7 rounded-sm bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-200 flex items-center justify-center font-semibold text-[11px] shrink-0">
+                  {(user.firstName?.[0] || 'U') + (user.lastName?.[0] || '')}
+                </div>
+                <div className="min-w-0">
+                  <p className="text-xs font-medium text-foreground truncate">
+                    {user.firstName || 'User'} {user.lastName || ''}
+                  </p>
+                  <p className="text-[10px] text-muted-foreground truncate">{user.email}</p>
+                </div>
+              </div>
+              <button
+                onClick={handleLogout}
+                title="Log out"
+                className="p-1.5 rounded-sm text-muted-foreground hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors cursor-pointer"
+              >
+                <LogOut size={13} />
+              </button>
+            </div>
+          ) : (
+            <div className="h-10 bg-muted/40 rounded-sm animate-pulse" />
+          )}
+        </div>
+      </aside>
+    </>
   );
 }
 

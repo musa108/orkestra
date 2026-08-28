@@ -53,7 +53,7 @@ export default function AnalyticsPage() {
     return (
       <>
         <Header title="Production Intelligence" />
-        <main className="p-8 max-w-7xl mx-auto">
+        <main className="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto">
           <LoadingState label="Querying ClickHouse Cloud historical OLAP analytics…" />
         </main>
       </>
@@ -66,11 +66,6 @@ export default function AnalyticsPage() {
   const approvalPerf = performance?.approvalLatency || dashboard?.analytics?.approvalLatency;
   const riskPatterns = riskIntelligence?.patterns || [];
 
-  const activeProductions = dashboard?.activeProductions ?? 0;
-  const runningWorkflows = dashboard?.runningWorkflows ?? 0;
-  const pendingApprovals = dashboard?.pendingApprovals ?? 0;
-  const totalAgents = agents.length || 7;
-
   return (
     <>
       <Header
@@ -78,11 +73,11 @@ export default function AnalyticsPage() {
         breadcrumbs={[{ label: 'Production Intelligence' }]}
       />
 
-      <main className="p-8 space-y-6 max-w-7xl mx-auto">
+      <main className="p-4 sm:p-6 lg:p-8 space-y-6 max-w-7xl mx-auto">
         {/* Header Summary & ClickHouse Engine Status */}
-        <div className="card-enterprise p-5 bg-muted/20 flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div className="card-enterprise p-4 sm:p-5 bg-muted/20 flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div className="space-y-1">
-            <h1 className="text-sm font-bold text-foreground flex items-center gap-2">
+            <h1 className="text-sm font-bold text-foreground flex items-center gap-2 flex-wrap">
               <span>Enterprise Historical Production Intelligence</span>
               <span className="font-mono text-[10px] px-1.5 py-0.2 rounded bg-muted border border-border text-muted-foreground">
                 OLAP Telemetry
@@ -140,9 +135,9 @@ export default function AnalyticsPage() {
 
         {/* Middle Section: Workflow Stage Latency & Bottleneck Discovery */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Workflow Stage Latency (Which steps historically cause delays?) */}
-          <div className="card-enterprise lg:col-span-2 divide-y divide-border">
-            <div className="p-4 flex items-center justify-between">
+          {/* Workflow Stage Latency */}
+          <div className="card-enterprise lg:col-span-2 divide-y divide-border shadow-sm">
+            <div className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
               <div>
                 <h2 className="text-xs font-bold text-foreground">Workflow Stage Latency & Bottleneck Analysis</h2>
                 <p className="text-[11px] text-muted-foreground mt-0.5">
@@ -154,7 +149,7 @@ export default function AnalyticsPage() {
               </span>
             </div>
 
-            <div className="p-4 space-y-3">
+            <div className="p-4 space-y-3.5">
               {(wfPerf?.stepBreakdown && wfPerf.stepBreakdown.length > 0
                 ? wfPerf.stepBreakdown
                 : [
@@ -171,7 +166,7 @@ export default function AnalyticsPage() {
                 const pct = Math.min(100, Math.round((step.avgDurationMs / maxDuration) * 100));
 
                 return (
-                  <div key={idx} className="space-y-1">
+                  <div key={idx} className="space-y-1.5">
                     <div className="flex justify-between items-center text-xs">
                       <div className="flex items-center gap-2">
                         <span className="font-semibold text-foreground font-mono">{step.stepName}</span>
@@ -200,7 +195,7 @@ export default function AnalyticsPage() {
           </div>
 
           {/* Historical Risk Correlation Factors */}
-          <div className="card-enterprise p-4 flex flex-col justify-between space-y-4">
+          <div className="card-enterprise p-4 sm:p-5 flex flex-col justify-between space-y-4 shadow-sm">
             <div>
               <div className="flex items-center gap-2 mb-1">
                 <AlertTriangle size={16} className="text-amber-600 dark:text-amber-400" />
@@ -238,7 +233,7 @@ export default function AnalyticsPage() {
         {/* Bottom Section: Agent Reliability & Failure Metrics */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Agent Reliability & Invocations */}
-          <div className="card-enterprise divide-y divide-border">
+          <div className="card-enterprise divide-y divide-border shadow-sm">
             <div className="p-4 flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <Bot size={16} className="text-foreground" />
@@ -247,7 +242,7 @@ export default function AnalyticsPage() {
               <span className="text-[10px] font-mono text-muted-foreground">Invocations & Latency</span>
             </div>
 
-            <div className="p-4 space-y-3">
+            <div className="p-4 space-y-2.5">
               {(agentPerf.length > 0
                 ? agentPerf
                 : agents.map((a) => ({
@@ -260,14 +255,14 @@ export default function AnalyticsPage() {
                   }))
               ).map((ap: any, i: number) => (
                 <div key={i} className="p-2.5 rounded bg-muted/20 border border-border flex items-center justify-between text-xs">
-                  <div className="space-y-0.5">
-                    <span className="font-bold text-foreground">{ap.agentType} Agent</span>
-                    <p className="text-[10px] text-muted-foreground font-mono">
+                  <div className="space-y-0.5 min-w-0 pr-2">
+                    <span className="font-bold text-foreground truncate block">{ap.agentType} Agent</span>
+                    <p className="text-[10px] text-muted-foreground font-mono truncate">
                       {ap.totalInvocations} total calls • {ap.failedInvocations} failures
                     </p>
                   </div>
 
-                  <div className="text-right font-mono">
+                  <div className="text-right font-mono shrink-0">
                     <span className="text-emerald-600 dark:text-emerald-400 font-bold block">
                       {Math.round((ap.avgConfidence || 0.88) * 100)}% Conf
                     </span>
@@ -281,7 +276,7 @@ export default function AnalyticsPage() {
           </div>
 
           {/* Human-in-the-Loop Governance Decisions */}
-          <div className="card-enterprise divide-y divide-border">
+          <div className="card-enterprise divide-y divide-border shadow-sm">
             <div className="p-4 flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <ShieldCheck size={16} className="text-foreground" />
@@ -311,7 +306,7 @@ export default function AnalyticsPage() {
                   Recent Governance Decisions
                 </span>
                 {approvals.slice(0, 3).map((a, i) => (
-                  <div key={i} className="p-2.5 rounded bg-muted/20 border border-border flex items-center justify-between">
+                  <div key={i} className="p-2.5 rounded bg-muted/20 border border-border flex items-center justify-between gap-2">
                     <div className="space-y-0.5 min-w-0 pr-2">
                       <p className="font-semibold text-foreground truncate">{a.workflow?.production?.title || 'Production Decision'}</p>
                       <p className="text-[11px] text-muted-foreground truncate">{a.comments}</p>

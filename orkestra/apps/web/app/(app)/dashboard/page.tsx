@@ -123,13 +123,13 @@ export default function DashboardPage() {
     };
   }, [load]);
 
-  async function handleApprove(id: string) {
-    await api.approve(id);
+  async function handleApprove(id: string, comments?: string) {
+    await api.approve(id, comments);
     await load();
   }
 
-  async function handleReject(id: string) {
-    await api.reject(id);
+  async function handleReject(id: string, comments?: string) {
+    await api.reject(id, comments);
     await load();
   }
 
@@ -143,34 +143,34 @@ export default function DashboardPage() {
         breadcrumbs={[{ label: 'Operations Center' }]}
       />
 
-      <main className="p-8 space-y-6 max-w-7xl mx-auto">
+      <main className="p-4 sm:p-6 lg:p-8 space-y-6 max-w-7xl mx-auto">
         {loading && <LoadingState label="Connecting to Orkestra orchestrator & ClickHouse telemetry…" />}
         {!loading && error && <ErrorState message={error} onRetry={load} />}
 
         {!loading && !error && data && (
           <>
             {/* Top Operational Status Bar */}
-            <div className="card-enterprise p-4 bg-muted/20 flex flex-wrap items-center justify-between gap-4">
+            <div className="card-enterprise p-4 bg-muted/20 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
               <div className="flex items-center gap-3">
-                <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
-                <div>
-                  <h1 className="text-xs font-bold text-foreground flex items-center gap-2">
+                <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse shrink-0" />
+                <div className="min-w-0">
+                  <h1 className="text-xs font-bold text-foreground flex items-center gap-2 flex-wrap">
                     <span>Orkestra Enterprise Autonomous Agent Core</span>
                     <span className="font-mono text-[10px] px-1.5 py-0.2 rounded bg-muted border border-border text-muted-foreground">
                       v2.0-competition
                     </span>
                   </h1>
-                  <p className="text-[11px] text-muted-foreground">
+                  <p className="text-[11px] text-muted-foreground truncate sm:whitespace-normal">
                     Deterministic hierarchical multi-agent state machines powered by Google Gemini, Google ADK & FastMCP.
                   </p>
                 </div>
               </div>
 
-              <div className="flex items-center gap-3 text-xs">
+              <div className="flex items-center gap-2 sm:gap-3 text-xs flex-wrap">
                 <div className="flex items-center gap-1.5 px-2.5 py-1 rounded bg-card border border-border">
                   <Database size={13} className={data.clickhouseAvailable ? 'text-emerald-600 dark:text-emerald-400' : 'text-amber-600 dark:text-amber-400'} />
                   <span className="font-mono text-[11px]">
-                    ClickHouse: {data.clickhouseAvailable ? 'Connected (Cloud OLAP)' : 'Fallback (Postgres Snapshot)'}
+                    ClickHouse: {data.clickhouseAvailable ? 'Cloud OLAP' : 'Postgres Snapshot'}
                   </span>
                 </div>
 
@@ -202,7 +202,7 @@ export default function DashboardPage() {
                 value={data.pendingApprovals}
                 icon={ShieldCheck}
                 tone="warning"
-                subtext={data.pendingApprovals > 0 ? 'Action required' : 'All gates clear'}
+                subtext={data.pendingApprovals > 0 ? `${data.pendingApprovals} require action` : 'All gates clear'}
               />
               <StatCard
                 label="AI Agent Workforce"
@@ -215,14 +215,14 @@ export default function DashboardPage() {
 
             {/* Urgent AI Decision Required Action Banner */}
             {urgentDecision && (
-              <div className="card-enterprise border-amber-400 dark:border-amber-700/80 bg-amber-50/60 dark:bg-amber-950/30 p-5 space-y-3 shadow-md animate-in fade-in">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                  <div className="flex items-center gap-2.5">
-                    <div className="w-8 h-8 rounded bg-amber-100 dark:bg-amber-900/60 text-amber-800 dark:text-amber-200 flex items-center justify-center font-bold">
+              <div className="card-enterprise border-amber-400 dark:border-amber-700/80 bg-amber-50/60 dark:bg-amber-950/30 p-4 sm:p-5 space-y-3 shadow-md animate-in fade-in">
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                  <div className="flex items-start sm:items-center gap-3">
+                    <div className="w-8 h-8 rounded bg-amber-100 dark:bg-amber-900/60 text-amber-800 dark:text-amber-200 flex items-center justify-center font-bold shrink-0 mt-0.5 sm:mt-0">
                       <ShieldAlert size={18} />
                     </div>
-                    <div>
-                      <div className="flex items-center gap-2">
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
                         <span className="text-xs font-bold text-amber-950 dark:text-amber-200 uppercase tracking-wide">
                           Executive Human Gate: High Risk Policy Triggered
                         </span>
@@ -236,7 +236,7 @@ export default function DashboardPage() {
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-2 shrink-0">
+                  <div className="flex items-center gap-2 shrink-0 w-full sm:w-auto">
                     <button
                       onClick={() =>
                         setSelectedDecision({
@@ -250,7 +250,7 @@ export default function DashboardPage() {
                           proposedChanges: urgentDecision.proposedChanges,
                         })
                       }
-                      className="btn-primary text-xs px-4 py-2 flex items-center gap-1.5 shadow-sm"
+                      className="btn-primary text-xs px-4 py-2 flex items-center justify-center gap-1.5 shadow-sm w-full sm:w-auto cursor-pointer"
                     >
                       <span>Review AI Decision & Evidence</span>
                       <ChevronRight size={14} />
@@ -258,8 +258,8 @@ export default function DashboardPage() {
                   </div>
                 </div>
 
-                <div className="pt-2 border-t border-amber-200 dark:border-amber-800/40 text-xs text-muted-foreground flex items-center justify-between">
-                  <p className="line-clamp-1">{urgentDecision.comments}</p>
+                <div className="pt-2 border-t border-amber-200 dark:border-amber-800/40 text-xs text-muted-foreground flex flex-col sm:flex-row sm:items-center justify-between gap-1">
+                  <p className="line-clamp-2 sm:line-clamp-1">{urgentDecision.comments}</p>
                   <span className="font-mono text-[10px] shrink-0 text-amber-900 dark:text-amber-300">
                     Grounded in ClickHouse Historical Delay Patterns
                   </span>
@@ -270,7 +270,7 @@ export default function DashboardPage() {
             {/* Active Workflow Live HUD */}
             {activeWorkflow && (
               <div className="space-y-2">
-                <div className="flex items-center justify-between">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                   <h2 className="text-xs font-bold text-foreground uppercase tracking-wider flex items-center gap-1.5">
                     <Activity size={14} className="text-accent" />
                     <span>Live Primary Workflow Pipeline: The Last Horizon</span>
@@ -293,7 +293,7 @@ export default function DashboardPage() {
 
             {/* AI Agent Workforce Cluster Matrix */}
             <div className="card-enterprise divide-y divide-border">
-              <div className="p-4 flex items-center justify-between">
+              <div className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                 <div>
                   <div className="flex items-center gap-2">
                     <Bot size={16} className="text-foreground" />
@@ -308,7 +308,7 @@ export default function DashboardPage() {
                 </Link>
               </div>
 
-              <div className="p-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 bg-card">
+              <div className="p-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 bg-card">
                 {data.agents && data.agents.length > 0 ? (
                   data.agents.map((agent) => {
                     const info = AGENT_ROLES[agent.type] || {
@@ -349,7 +349,7 @@ export default function DashboardPage() {
             {/* Quick Actions & Recent Productions Grid */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
               {/* Studio Orchestration Shortcuts */}
-              <div className="card-enterprise p-4 flex flex-col justify-between space-y-4">
+              <div className="card-enterprise p-4 sm:p-5 flex flex-col justify-between space-y-4">
                 <div>
                   <div className="flex items-center gap-2 mb-1">
                     <Play size={16} className="text-foreground" />
@@ -385,7 +385,7 @@ export default function DashboardPage() {
                   </Link>
                 </div>
 
-                <div className="divide-y divide-border">
+                <div className="divide-y divide-border overflow-hidden">
                   {productions.length === 0 ? (
                     <div className="p-8 text-center text-xs text-muted-foreground">
                       No active productions found.
@@ -395,7 +395,7 @@ export default function DashboardPage() {
                       <Link
                         key={p.id}
                         href={`/productions/${p.id}`}
-                        className="p-3.5 flex items-center justify-between hover:bg-muted/40 transition-colors block"
+                        className="p-3.5 sm:p-4 flex items-center justify-between hover:bg-muted/40 transition-colors block"
                       >
                         <div className="space-y-0.5 min-w-0 pr-3">
                           <p className="text-xs font-semibold text-foreground truncate">{p.title}</p>
@@ -427,4 +427,3 @@ export default function DashboardPage() {
     </>
   );
 }
-

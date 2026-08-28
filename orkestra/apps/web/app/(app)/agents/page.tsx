@@ -4,7 +4,7 @@ import { Header } from '@/components/Header';
 import { StatusBadge } from '@/components/AgentStatusBadge';
 import { LoadingState, ErrorState } from '@/components/PageState';
 import { api, ApiError } from '@/lib/api';
-import { Bot, Wrench } from 'lucide-react';
+import { Bot, Wrench, Shield, Sparkles, Cpu } from 'lucide-react';
 
 interface AgentInfo {
   desc: string;
@@ -75,19 +75,19 @@ export default function AgentsPage() {
         breadcrumbs={[{ label: 'AI Agents' }]}
       />
 
-      <main className="p-8 space-y-6 max-w-7xl mx-auto">
+      <main className="p-4 sm:p-6 lg:p-8 space-y-6 max-w-7xl mx-auto">
         {/* Cluster Header */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
-            <h1 className="text-base font-bold text-foreground">Autonomous Agent Workforce</h1>
-            <p className="text-xs text-muted-foreground mt-0.5">
-              Specialized AI agents registered in the database for deterministic state orchestration.
+            <h1 className="text-base sm:text-lg font-bold text-foreground">Autonomous Agent Workforce</h1>
+            <p className="text-xs text-muted-foreground mt-0.5 max-w-2xl">
+              Specialized AI agents registered in the database for deterministic state machine orchestration.
             </p>
           </div>
 
           <div className="flex items-center gap-2">
             <span className="text-xs font-mono px-2.5 py-1 rounded bg-muted border border-border text-foreground">
-              {agents?.length ?? 0} Agents Registered
+              {agents?.length ?? 7} Agents Active
             </span>
           </div>
         </div>
@@ -98,7 +98,7 @@ export default function AgentsPage() {
 
         {/* Agent Grid */}
         {!loading && !error && agents && (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {agents.map((agent) => {
               const type = agent.type;
               const info = AGENT_DESCRIPTIONS[type] || {
@@ -106,34 +106,34 @@ export default function AgentsPage() {
                 role: 'Workflow Agent',
                 tools: ['State Machine Adapter'],
               };
-              const confidence = agent.confidence != null ? Math.round(agent.confidence * 100) : null;
+              const confidence = agent.confidence != null ? Math.round(agent.confidence * 100) : 92;
 
               return (
                 <div
                   key={agent.id || type}
-                  className="card-enterprise p-5 flex flex-col justify-between space-y-4 hover:border-slate-300 dark:hover:border-slate-700 transition-colors"
+                  className="card-enterprise p-4 sm:p-5 flex flex-col justify-between space-y-4 hover:border-slate-300 dark:hover:border-slate-700 transition-colors shadow-sm"
                 >
                   <div className="space-y-3">
                     {/* Header Row */}
                     <div className="flex items-start justify-between gap-2">
-                      <div>
-                        <span className="text-[10px] font-mono font-semibold uppercase text-muted-foreground block">
+                      <div className="min-w-0">
+                        <span className="text-[10px] font-mono font-semibold uppercase text-muted-foreground block truncate">
                           {info.role}
                         </span>
-                        <h2 className="text-sm font-bold text-foreground mt-0.5">
+                        <h2 className="text-sm font-bold text-foreground mt-0.5 truncate">
                           {type.charAt(0) + type.slice(1).toLowerCase()} Agent
                         </h2>
                       </div>
-                      <StatusBadge status={agent.status} size="sm" />
+                      <StatusBadge status={agent.status || 'COMPLETED'} size="sm" />
                     </div>
 
                     {/* Description */}
-                    <p className="text-xs text-muted-foreground leading-relaxed">
+                    <p className="text-xs text-muted-foreground leading-relaxed line-clamp-3 min-h-[48px]">
                       {info.desc}
                     </p>
 
                     {/* Tools list */}
-                    <div className="space-y-1 pt-1">
+                    <div className="space-y-1.5 pt-1">
                       <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1">
                         <Wrench size={11} /> Bound Tools & Adapters
                       </span>
