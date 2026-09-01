@@ -141,9 +141,9 @@ export function Sidebar({ mobileOpen = false, onMobileClose }: SidebarProps) {
 
       <aside
         className={clsx(
-          'w-64 shrink-0 bg-card border-r border-border h-screen flex flex-col justify-between select-none transition-transform duration-200 z-50',
-          // Desktop: sticky and fixed in flow
-          'lg:sticky lg:top-0 lg:translate-x-0 lg:z-20',
+          'w-64 shrink-0 bg-card border-r border-border flex flex-col justify-between select-none transition-transform duration-200 z-40',
+          // Desktop: sticky and anchored to the viewport while the page scrolls
+          'lg:sticky lg:top-0 lg:self-start lg:h-screen lg:min-h-screen lg:translate-x-0 lg:z-20',
           // Mobile: drawer positioning
           'fixed top-0 bottom-0 left-0',
           mobileOpen ? 'translate-x-0 shadow-2xl' : '-translate-x-full lg:translate-x-0',
@@ -188,7 +188,10 @@ export function Sidebar({ mobileOpen = false, onMobileClose }: SidebarProps) {
                 </h2>
                 <div className="space-y-0.5 pt-1">
                   {section.items.map(({ href, label, icon: Icon, badge, badgeTone }) => {
-                    const active = href === '/dashboard' ? pathname === '/dashboard' : pathname?.startsWith(href);
+                    const currentPath = pathname ?? '/';
+                    const active = href === '/dashboard'
+                      ? currentPath === '/dashboard'
+                      : currentPath === href || currentPath.startsWith(`${href}/`);
                     return (
                       <Link
                         key={href}

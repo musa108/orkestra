@@ -395,7 +395,7 @@ export default function DashboardPage() {
                       <Link
                         key={p.id}
                         href={`/productions/${p.id}`}
-                        className="p-3.5 sm:p-4 flex items-center justify-between hover:bg-muted/40 transition-colors block"
+                        className="p-3.5 sm:p-4 items-center justify-between hover:bg-muted/40 transition-colors block"
                       >
                         <div className="space-y-0.5 min-w-0 pr-3">
                           <p className="text-xs font-semibold text-foreground truncate">{p.title}</p>

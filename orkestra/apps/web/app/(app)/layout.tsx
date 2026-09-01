@@ -36,8 +36,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         mobileOpen={mobileSidebarOpen}
         onMobileClose={() => setMobileSidebarOpen(false)}
       />
-      <div className="flex-1 flex flex-col min-w-0 w-full overflow-x-hidden">
-        {/* Pass mobile toggle handler via event or React context if needed; also attach a global event listener */}
+      <div className="flex-1 min-w-0 w-full overflow-x-hidden">
         <div
           onClick={(e) => {
             const target = e.target as HTMLElement;
@@ -45,7 +44,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
               setMobileSidebarOpen(true);
             }
           }}
-          className="flex-1 flex flex-col min-w-0 w-full"
+          className="flex min-h-screen flex-col"
         >
           {children}
         </div>
