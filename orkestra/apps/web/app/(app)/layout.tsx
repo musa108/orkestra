@@ -31,12 +31,12 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <div className="flex min-h-screen bg-background overflow-x-hidden">
+    <div className="flex h-screen w-full overflow-hidden bg-background">
       <Sidebar
         mobileOpen={mobileSidebarOpen}
         onMobileClose={() => setMobileSidebarOpen(false)}
       />
-      <div className="flex-1 min-w-0 w-full overflow-x-hidden">
+      <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
         <div
           onClick={(e) => {
             const target = e.target as HTMLElement;
@@ -44,7 +44,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
               setMobileSidebarOpen(true);
             }
           }}
-          className="flex min-h-screen flex-col"
+          className="flex min-h-0 flex-1 flex-col overflow-y-auto"
         >
           {children}
         </div>
