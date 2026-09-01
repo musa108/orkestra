@@ -69,20 +69,96 @@ export function DecisionReviewModal({
 
   if (!decision) return null;
 
-  const changes = decision.proposedChanges || {};
-  const riskLevel = (changes.riskLevel || decision.riskLevel || 'HIGH').toUpperCase();
-  const summary = changes.summary || decision.comments || 'Executive authorization required for automated workflow progression.';
-  const factors = changes.contributingFactors || ['Schedule turnaround compression', 'Logistical multi-unit complexity'];
-  const evidence = changes.evidence || [
+  const changes = decision.proposedChanges && typeof decision.proposedChanges === 'object' ? decision.proposedChanges as Record<string, any> : {};
+  const fallbackFactors = ['Schedule turnaround compression', 'Logistical multi-unit complexity'];
+  const fallbackEvidence = [
     {
       factor: 'schedule_compression',
       source: 'clickhouse',
       finding: 'Historical ClickHouse analytics indicate 32% increased turnaround delays for compressed documentary workflows.',
     },
   ];
-  const recommendation = changes.recommendation || 'Authorize staging contingency buffer and proceed with workflow execution.';
-  const expectedImpact = changes.expectedImpact || 'Secures budget contingency and mitigates downstream schedule delays.';
-  const affectedSteps = changes.affectedWorkflowSteps || ['schedule-generation', 'budget-approval', 'marketing-plan'];
+  const fallbackSteps = ['schedule-generation', 'budget-approval', 'marketing-plan'];
+
+  const toStringArray = (value: unknown, fallback: string[]) => {
+    if (Array.isArray(value)) {
+      return value
+        .map((item) => (typeof item === 'string' ? item.trim() : ''))
+        .filter(Boolean);
+    }
+    if (typeof value === 'string') {
+      return value
+        .split(',')
+        .map((item) => item.trim())
+        .filter(Boolean);
+    }
+    if (value && typeof value === 'object') {
+      const objectValues = Object.values(value as Record<string, unknown>).flatMap((entry) => {
+        if (typeof entry === 'string') return [entry.trim()];
+        if (Array.isArray(entry)) {
+          return entry
+            .filter((item): item is string => typeof item === 'string')
+            .map((item) => item.trim());
+        }
+        return [];
+      });
+      return objectValues.length > 0 ? objectValues.filter(Boolean) : fallback;
+    }
+    return fallback;
+  };
+
+  const toEvidenceArray = (value: unknown) => {
+    if (Array.isArray(value)) {
+      const normalized = value
+        .map((item) => {
+          if (!item || typeof item !== 'object') return null;
+          const entry = item as Record<string, any>;
+          if (!entry.factor && !entry.name && !entry.finding && !entry.summary) return null;
+          return {
+            factor: typeof entry.factor === 'string' ? entry.factor : typeof entry.name === 'string' ? entry.name : 'historical_risk',
+            source: typeof entry.source === 'string' ? entry.source : 'clickhouse',
+            finding: typeof entry.finding === 'string' ? entry.finding : typeof entry.summary === 'string' ? entry.summary : 'Historical workflow intelligence indicates elevated risk.',
+          };
+        })
+        .filter((item): item is { factor: string; source: string; finding: string } => !!item && !!item.finding);
+
+      return normalized.length > 0 ? normalized : fallbackEvidence;
+    }
+
+    if (value && typeof value === 'object') {
+      const entries = Object.entries(value as Record<string, unknown>);
+      const normalized = entries
+        .map(([key, entry]) => {
+          if (!entry) return null;
+          if (typeof entry === 'string') {
+            return { factor: key, source: 'clickhouse', finding: entry };
+          }
+          if (typeof entry === 'object') {
+            const objectEntry = entry as Record<string, any>;
+            return {
+              factor: typeof objectEntry.factor === 'string' ? objectEntry.factor : key,
+              source: typeof objectEntry.source === 'string' ? objectEntry.source : 'clickhouse',
+              finding: typeof objectEntry.finding === 'string' ? objectEntry.finding : typeof objectEntry.summary === 'string' ? objectEntry.summary : 'Historical workflow intelligence indicates elevated risk.',
+            };
+          }
+          return null;
+        })
+        .filter((item): item is { factor: string; source: string; finding: string } => !!item && !!item.finding);
+
+      return normalized.length > 0 ? normalized : fallbackEvidence;
+    }
+
+    return fallbackEvidence;
+  };
+
+  const rawRisk = typeof changes.riskLevel === 'string' ? changes.riskLevel : typeof decision.riskLevel === 'string' ? decision.riskLevel : 'HIGH';
+  const riskLevel = rawRisk.toUpperCase();
+  const summary = typeof changes.summary === 'string' ? changes.summary : typeof decision.comments === 'string' ? decision.comments : 'Executive authorization required for automated workflow progression.';
+  const factors = toStringArray(changes.contributingFactors, fallbackFactors);
+  const evidence = toEvidenceArray(changes.evidence);
+  const recommendation = typeof changes.recommendation === 'string' ? changes.recommendation : 'Authorize staging contingency buffer and proceed with workflow execution.';
+  const expectedImpact = typeof changes.expectedImpact === 'string' ? changes.expectedImpact : 'Secures budget contingency and mitigates downstream schedule delays.';
+  const affectedSteps = toStringArray(changes.affectedWorkflowSteps, fallbackSteps);
 
   const handleAction = async (type: 'approve' | 'reject') => {
     setSubmitting(true);
